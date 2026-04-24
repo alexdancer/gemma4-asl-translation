@@ -1,0 +1,16 @@
+torch
+torchvision
+mediapipe
+transformers
+unsloth
+bitsandbytes
+peft
+accelerate
+numpy
+pandas
+opencv-python
+tqdm
+matplotlib
+jupyter
+pyyaml
+pytest
