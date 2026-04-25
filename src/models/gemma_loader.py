@@ -1,4 +1,4 @@
-"""Gemma 4 2B-E2B loading and fine-tuning utilities."""
+"""Gemma 4 E2B loading and fine-tuning utilities."""
 
 from __future__ import annotations
 
@@ -17,7 +17,7 @@ def load_gemma_4_2b_e2b(
     max_seq_length: int = 2048,
 ) -> Tuple[object, AutoTokenizer]:
     """
-    Load Gemma 4 2B-E2B with LoRA adapter for fine-tuning.
+    Load Gemma 4 E2B (instruction-tuned) with LoRA adapter for fine-tuning.
 
     This uses Unsloth for optimized loading and LoRA integration.
     Supports 4-bit quantization for memory efficiency on consumer GPUs.
@@ -47,12 +47,12 @@ def load_gemma_4_2b_e2b(
             "Install with: pip install unsloth"
         ) from exc
 
-    LOGGER.info("Loading Gemma 4 2B-E2B (multimodal, instruct-tuned)")
+    LOGGER.info("Loading Gemma 4 E2B (instruction-tuned)")
     LOGGER.info(f"LoRA rank: {lora_rank}, 4-bit quantization: {load_in_4bit}")
 
     # Load base model + tokenizer
     model, tokenizer = FastLanguageModel.from_pretrained(
-        model_name="google/gemma-4-2b-e2b-instruct",
+        model_name="google/gemma-4-E2B-it",
         max_seq_length=max_seq_length,
         dtype=torch.float16 if torch.cuda.is_available() else torch.float32,
         load_in_4bit=load_in_4bit,

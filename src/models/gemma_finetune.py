@@ -278,7 +278,10 @@ def load_training_checkpoint(
     if hasattr(tokenizer, "from_pretrained"):
         tokenizer = tokenizer.__class__.from_pretrained(checkpoint_dir)
 
-    trainer_state = torch.load(state_path, map_location=map_location)
+    try:
+        trainer_state = torch.load(state_path, map_location=map_location, weights_only=False)
+    except TypeError:
+        trainer_state = torch.load(state_path, map_location=map_location)
     if optimizer is not None:
         optimizer.load_state_dict(trainer_state["optimizer_state_dict"])
     if scheduler is not None:

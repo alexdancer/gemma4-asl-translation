@@ -32,7 +32,7 @@ pose_extraction:
   batch_error_log: data/processed/poses/extraction_errors.json
 
 gemma:
-  model_name: google/gemma-4-2b-e2b-instruct
+  model_name: google/gemma-4-E2B-it
   max_seq_length: 2048
   load_in_4bit: true
   torch_dtype: float16
