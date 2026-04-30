@@ -29,3 +29,12 @@ Thumbs.db
 
 # Unsloth
 unsloth_compiled_cache/
+
+# Mobile export artifacts
+cactus_export/
+
+# Checkpoints
+checkpoints/
+
+issues/
+ralph/

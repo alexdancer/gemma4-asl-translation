@@ -1,0 +1,6 @@
+{
+  "scripts": {
+    "test": "python -m pytest",
+    "typecheck": "python -m compileall src scripts tests"
+  }
+}

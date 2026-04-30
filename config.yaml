@@ -69,5 +69,6 @@ inference:
   max_new_tokens: 8
   num_beams: 5
   temperature: 0.0
+  confidence_threshold: 0.70
   target_latency_ms: 200
   target_word_accuracy: 0.85

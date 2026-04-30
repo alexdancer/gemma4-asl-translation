@@ -10,7 +10,13 @@ from typing import Dict
 import pandas as pd
 
 from scripts.extract_poses_batch import configure_logging, extract_pose_archives
-from src.data.create_splits import save_splits, stratified_split
+from src.data.create_splits import (
+    TOP50_CONTRACT_VERSION,
+    create_top50_split_artifacts,
+    save_splits,
+    save_top50_contract,
+    stratified_split,
+)
 from src.data.wlasl_loader import download_wlasl_metadata, load_wlasl_metadata
 
 LOGGER = logging.getLogger(__name__)
@@ -25,7 +31,7 @@ def build_training_pairs(metadata: pd.DataFrame, pose_dir: Path) -> pd.DataFrame
     if frame.empty:
         raise ValueError("No pose archives were found. Run extraction before building training pairs.")
 
-    columns = ["sample_id", "gloss", "split", "video_id", "video_path", "pose_path"]
+    columns = ["sample_id", "gloss", "split", "signer_id", "video_id", "video_path", "pose_path"]
     existing_columns = [column for column in columns if column in frame.columns]
     return frame[existing_columns]
 
@@ -39,6 +45,9 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--video-dir", type=Path, default=Path("data/raw/wlasl/videos"), help="Directory containing WLASL videos.")
     parser.add_argument("--pose-dir", type=Path, default=Path("data/processed/poses"), help="Directory containing extracted pose archives.")
     parser.add_argument("--output-dir", type=Path, default=Path("data/processed/training_pairs"), help="Output directory for CSV manifests.")
+    parser.add_argument("--top50-contract", type=Path, default=Path("data/contracts/asl_top50_glosses_v1.json"), help="Versioned Top-50 gloss contract path.")
+    parser.add_argument("--top50-output-dir", type=Path, default=Path("data/processed/splits/top50"), help="Output directory for Top-50 random and signer-independent split artifacts.")
+    parser.add_argument("--top50-only", action="store_true", help="Only generate Top-50 split artifacts from metadata; do not require pose archives.")
     parser.add_argument("--train-ratio", type=float, default=0.70, help="Train split ratio.")
     parser.add_argument("--val-ratio", type=float, default=0.15, help="Validation split ratio.")
     parser.add_argument("--test-ratio", type=float, default=0.15, help="Test split ratio.")
@@ -62,6 +71,20 @@ def main() -> None:
         overwrite=False,
     )
     metadata = load_wlasl_metadata(metadata_path, video_dir=args.video_dir)
+
+    save_top50_contract(args.top50_contract, overwrite=False)
+    top50_outputs = create_top50_split_artifacts(
+        metadata,
+        output_dir=args.top50_output_dir,
+        contract_path=args.top50_contract,
+        train_ratio=args.train_ratio,
+        val_ratio=args.val_ratio,
+        test_ratio=args.test_ratio,
+        seed=args.seed,
+    )
+    LOGGER.info("Saved Top-50 %s split artifacts: %s", TOP50_CONTRACT_VERSION, top50_outputs)
+    if args.top50_only:
+        return
 
     if args.extract_missing_poses:
         summary = extract_pose_archives(

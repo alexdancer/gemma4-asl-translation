@@ -1,0 +1,23 @@
+{
+  "scenario": "judge-demo-emergency",
+  "steps": [
+    {
+      "at_ms": 0,
+      "prediction": "hello",
+      "confidence": 0.95,
+      "latency_ms": 0.0
+    },
+    {
+      "at_ms": 1200,
+      "prediction": "thanks",
+      "confidence": 0.96,
+      "latency_ms": 0.0
+    },
+    {
+      "at_ms": 2400,
+      "prediction": "yes",
+      "confidence": 0.92,
+      "latency_ms": 0.0
+    }
+  ]
+}

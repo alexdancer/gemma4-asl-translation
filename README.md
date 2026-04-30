@@ -90,6 +90,34 @@ pytest tests/test_gemma_finetune.py
 The tests cover `FineTuneConfig`, gradient clipping, the cosine warmup learning
 rate scheduler, and checkpoint save/load state.
 
+## Top-50 Split Artifacts
+
+Generate the fixed Top-50 ASL gloss contract plus both random and
+signer-independent train/validation/test splits with:
+
+```bash
+python scripts/prepare_training_data.py --top50-only
+```
+
+The contract is versioned at `data/contracts/asl_top50_glosses_v1.json`. Split
+artifacts are written under `data/processed/splits/top50/`.
+
+## Prerecorded Fallback Demo
+
+Fallback A runs a prerecorded media file through the same live feature stream
+and TCN prediction path used by live mode:
+
+```bash
+python scripts/run_prerecorded_fallback.py \
+  --media-path data/demo/prerecorded_clip.mp4 \
+  --frame-count 8
+```
+
+The script prints a JSON payload with `mode: prerecorded`, confidence-aware
+display text, and the observable media path so the mode switch is visible in
+logs or UI plumbing. Lightweight `.npy` clips with shape
+`(frames, height, width, channels)` are also supported for deterministic tests.
+
 ## Troubleshooting
 
 - `unsloth is required`: install dependencies with `pip install -r requirements.txt`.
