@@ -17,7 +17,7 @@ from typing import Any, Dict, Iterable, Mapping, Optional, Tuple
 import numpy as np
 import torch
 
-from src.models.gemma_loader import load_checkpoint
+from src.mobile.checkpoint_loader import load_checkpoint
 
 LOGGER = logging.getLogger(__name__)
 
