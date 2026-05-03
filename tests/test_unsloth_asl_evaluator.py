@@ -10,13 +10,18 @@ from src.evaluation.unsloth_asl import (
     CandidateLabelScore,
     MockASLGlossPredictor,
     MockConstrainedGlossScorer,
+    build_constrained_comparison,
     build_metrics,
+    evaluate_q64_records_constrained,
     evaluate_q64_records,
     infer_q64_record,
+    load_free_generation_artifacts,
     normalize_model_output,
     score_q64_record_constrained,
+    write_constrained_evaluation_artifacts,
     write_evaluation_artifacts,
 )
+from scripts.evaluate_unsloth_asl_constrained import main as constrained_cli_main
 
 
 def test_normalize_model_output_accepts_only_manifest_labels() -> None:
@@ -175,3 +180,136 @@ def test_constrained_scoring_is_separate_from_free_generation_metrics() -> None:
     assert constrained.best_label == "thanks"
     assert constrained.correct is True
     assert "constrained" not in metrics
+
+
+def test_constrained_evaluation_writes_required_artifacts(tmp_path: Path) -> None:
+    records = [
+        {
+            "instruction": "Classify.",
+            "input": "sample_id=abc_7\nencoding=q64_full\npose_q64=CCC",
+            "output": "thanks",
+        }
+    ]
+    labels = ("hello", "thanks", "yes")
+    scorer = MockConstrainedGlossScorer({"hello": -3.0, "thanks": -0.1, "yes": -2.0})
+
+    rows, metrics = evaluate_q64_records_constrained(
+        records,
+        scorer,
+        labels,
+        free_generation_predictions={"abc_7": "hello"},
+        top_score_count=2,
+    )
+    comparison = build_constrained_comparison(
+        metrics,
+        {
+            "sample_count": 1,
+            "strict_normalized_top1_accuracy": 0.0,
+            "invalid_output_rate": 0.25,
+            "correct": 0,
+        },
+    )
+    artifacts = write_constrained_evaluation_artifacts(rows, metrics, comparison, tmp_path)
+
+    with artifacts.constrained_predictions_csv.open("r", encoding="utf-8") as handle:
+        csv_rows = list(csv.DictReader(handle))
+    written_metrics = json.loads(artifacts.constrained_metrics_json.read_text(encoding="utf-8"))
+    written_comparison = json.loads(artifacts.comparison_json.read_text(encoding="utf-8"))
+    top_scores = json.loads(csv_rows[0]["top_scores"])
+
+    assert artifacts.constrained_predictions_csv.name == "constrained_predictions.csv"
+    assert artifacts.constrained_metrics_json.name == "constrained_metrics.json"
+    assert artifacts.comparison_json.name == "comparison.json"
+    assert csv_rows[0]["sample_id"] == "abc_7"
+    assert csv_rows[0]["expected_gloss"] == "thanks"
+    assert csv_rows[0]["free_generation_prediction"] == "hello"
+    assert csv_rows[0]["constrained_prediction"] == "thanks"
+    assert csv_rows[0]["constrained_correct"] == "True"
+    assert top_scores == [{"label": "thanks", "score": -0.1}, {"label": "yes", "score": -2.0}]
+    assert written_metrics["sample_count"] == 1
+    assert written_metrics["constrained_top1_accuracy"] == 1.0
+    assert written_metrics["top_score_count"] == 2
+    assert written_comparison["deltas"]["top1_accuracy"] == 1.0
+    assert written_comparison["deltas"]["invalid_output_rate"] == -0.25
+
+
+def test_load_free_generation_artifacts_requires_metrics_and_predictions(tmp_path: Path) -> None:
+    (tmp_path / "metrics.json").write_text("{}", encoding="utf-8")
+
+    try:
+        load_free_generation_artifacts(tmp_path)
+    except FileNotFoundError as exc:
+        assert "Free-generation predictions not found" in str(exc)
+    else:
+        raise AssertionError("Expected missing free-generation predictions to fail.")
+
+
+def test_constrained_cli_mock_smoke_and_missing_baseline_failure(tmp_path: Path) -> None:
+    manifest = tmp_path / "manifest.json"
+    test_file = tmp_path / "test.jsonl"
+    baseline_dir = tmp_path / "baseline"
+    out_dir = tmp_path / "constrained"
+    baseline_dir.mkdir()
+    manifest.write_text(json.dumps({"labels": ["hello", "thanks"]}), encoding="utf-8")
+    test_file.write_text(
+        json.dumps(
+            {
+                "instruction": "Classify.",
+                "input": "sample_id=abc_8\nencoding=q64_full\npose_q64=DDD",
+                "output": "hello",
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    (baseline_dir / "metrics.json").write_text(
+        json.dumps(
+            {
+                "sample_count": 1,
+                "strict_normalized_top1_accuracy": 1.0,
+                "invalid_output_rate": 0.0,
+                "correct": 1,
+            }
+        ),
+        encoding="utf-8",
+    )
+    (baseline_dir / "predictions.csv").write_text(
+        "index,sample_id,expected_gloss,predicted_gloss,raw_model_output,valid_label,correct,mode\n"
+        "0,abc_8,hello,hello,hello,True,True,real\n",
+        encoding="utf-8",
+    )
+
+    status = constrained_cli_main(
+        [
+            "--mock",
+            "--manifest",
+            str(manifest),
+            "--test-file",
+            str(test_file),
+            "--free-generation-results-dir",
+            str(baseline_dir),
+            "--out-dir",
+            str(out_dir),
+            "--top-scores",
+            "1",
+        ]
+    )
+    missing_status = constrained_cli_main(
+        [
+            "--mock",
+            "--manifest",
+            str(manifest),
+            "--test-file",
+            str(test_file),
+            "--free-generation-results-dir",
+            str(tmp_path / "missing-baseline"),
+            "--out-dir",
+            str(tmp_path / "missing-output"),
+        ]
+    )
+
+    assert status == 0
+    assert (out_dir / "constrained_predictions.csv").exists()
+    assert (out_dir / "constrained_metrics.json").exists()
+    assert (out_dir / "comparison.json").exists()
+    assert missing_status == 2

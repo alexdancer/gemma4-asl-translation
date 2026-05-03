@@ -80,6 +80,15 @@ class EvaluationArtifacts:
     metrics_json: Path
 
 
+@dataclass(frozen=True)
+class ConstrainedEvaluationArtifacts:
+    """Paths written by a constrained diagnostic evaluator run."""
+
+    constrained_predictions_csv: Path
+    constrained_metrics_json: Path
+    comparison_json: Path
+
+
 def load_q64_jsonl(path: Path | str, max_samples: int | None = None) -> list[dict[str, Any]]:
     """Load instruction/input/output q64 records from JSONL."""
 
@@ -451,6 +460,141 @@ def evaluate_q64_records(
     return rows, build_metrics(rows, normalized_labels)
 
 
+def evaluate_q64_records_constrained(
+    records: Sequence[Mapping[str, Any]],
+    scorer: ConstrainedGlossScorer,
+    labels: Sequence[str],
+    *,
+    free_generation_predictions: Mapping[str, str] | None = None,
+    top_score_count: int = 5,
+) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+    """Score q64 records with manifest-constrained label ranking."""
+
+    if top_score_count <= 0:
+        raise ValueError("top_score_count must be a positive integer.")
+
+    normalized_labels = tuple(normalize_gloss(label) for label in labels)
+    free_generation_predictions = free_generation_predictions or {}
+    rows: list[dict[str, Any]] = []
+
+    for index, record in enumerate(records):
+        sample_id = _record_sample_key(record)
+        result = score_q64_record_constrained(record, scorer, normalized_labels)
+        top_scores = [
+            {"label": score.label, "score": score.score}
+            for score in result.ranked_scores[:top_score_count]
+        ]
+        rows.append(
+            {
+                "index": index,
+                "sample_id": sample_id,
+                "expected_gloss": result.expected_gloss or "",
+                "free_generation_prediction": free_generation_predictions.get(sample_id, ""),
+                "constrained_prediction": result.best_label,
+                "constrained_correct": bool(result.correct),
+                "top_scores": json.dumps(top_scores, separators=(",", ":")),
+                "mode": result.mode,
+            }
+        )
+
+    metrics = build_constrained_metrics(
+        rows,
+        normalized_labels,
+        mode=scorer.mode,
+        top_score_count=top_score_count,
+    )
+    return rows, metrics
+
+
+def build_constrained_metrics(
+    rows: Sequence[Mapping[str, Any]],
+    labels: Sequence[str],
+    *,
+    mode: InferenceMode,
+    top_score_count: int,
+) -> dict[str, Any]:
+    """Build top-1 metrics for constrained diagnostic scoring."""
+
+    total = len(rows)
+    correct = sum(1 for row in rows if bool(row["constrained_correct"]))
+    return {
+        "sample_count": total,
+        "constrained_top1_accuracy": round(correct / total, 6) if total else 0.0,
+        "correct": correct,
+        "class_count": len(labels),
+        "mode": mode,
+        "top_score_count": top_score_count,
+    }
+
+
+def load_free_generation_artifacts(results_dir: Path | str) -> tuple[dict[str, Any], dict[str, str]]:
+    """Load required free-generation metrics and predictions for comparison."""
+
+    results_path = Path(results_dir)
+    metrics_path = results_path / "metrics.json"
+    predictions_path = results_path / "predictions.csv"
+    if not results_path.exists():
+        raise FileNotFoundError(f"Free-generation results directory not found: {results_path}")
+    if not metrics_path.exists():
+        raise FileNotFoundError(f"Free-generation metrics not found: {metrics_path}")
+    if not predictions_path.exists():
+        raise FileNotFoundError(f"Free-generation predictions not found: {predictions_path}")
+
+    metrics = json.loads(metrics_path.read_text(encoding="utf-8"))
+    predictions: dict[str, str] = {}
+    with predictions_path.open("r", encoding="utf-8", newline="") as handle:
+        reader = csv.DictReader(handle)
+        required = {"sample_id", "predicted_gloss"}
+        missing = required.difference(reader.fieldnames or ())
+        if missing:
+            raise ValueError(
+                f"{predictions_path} is missing required columns: {', '.join(sorted(missing))}"
+            )
+        for row in reader:
+            predictions[str(row["sample_id"])] = str(row.get("predicted_gloss", ""))
+
+    return metrics, predictions
+
+
+def build_constrained_comparison(
+    constrained_metrics: Mapping[str, Any],
+    free_generation_metrics: Mapping[str, Any],
+) -> dict[str, Any]:
+    """Compare constrained diagnostic metrics to strict free-generation metrics."""
+
+    required_free_metrics = ("strict_normalized_top1_accuracy", "invalid_output_rate")
+    missing_free_metrics = [key for key in required_free_metrics if key not in free_generation_metrics]
+    if missing_free_metrics:
+        raise ValueError(
+            "Free-generation metrics missing required fields: "
+            + ", ".join(sorted(missing_free_metrics))
+        )
+    if "constrained_top1_accuracy" not in constrained_metrics:
+        raise ValueError("Constrained metrics missing required field: constrained_top1_accuracy")
+
+    baseline_accuracy = float(free_generation_metrics["strict_normalized_top1_accuracy"])
+    constrained_accuracy = float(constrained_metrics["constrained_top1_accuracy"])
+    invalid_output_rate = float(free_generation_metrics["invalid_output_rate"])
+    return {
+        "free_generation": {
+            "strict_normalized_top1_accuracy": baseline_accuracy,
+            "invalid_output_rate": invalid_output_rate,
+            "sample_count": free_generation_metrics.get("sample_count"),
+            "correct": free_generation_metrics.get("correct"),
+        },
+        "constrained": {
+            "constrained_top1_accuracy": constrained_accuracy,
+            "sample_count": constrained_metrics.get("sample_count"),
+            "correct": constrained_metrics.get("correct"),
+            "mode": constrained_metrics.get("mode"),
+        },
+        "deltas": {
+            "top1_accuracy": round(constrained_accuracy - baseline_accuracy, 6),
+            "invalid_output_rate": round(0.0 - invalid_output_rate, 6),
+        },
+    }
+
+
 def build_metrics(rows: Sequence[Mapping[str, Any]], labels: Sequence[str]) -> dict[str, Any]:
     """Build exact-match, invalid-rate, per-class, and confusion metrics."""
 
@@ -518,6 +662,45 @@ def write_evaluation_artifacts(
 
     metrics_path.write_text(json.dumps(metrics, indent=2) + "\n", encoding="utf-8")
     return EvaluationArtifacts(predictions_csv=predictions_path, metrics_json=metrics_path)
+
+
+def write_constrained_evaluation_artifacts(
+    rows: Sequence[Mapping[str, Any]],
+    metrics: Mapping[str, Any],
+    comparison: Mapping[str, Any],
+    out_dir: Path | str,
+) -> ConstrainedEvaluationArtifacts:
+    """Write constrained predictions, constrained metrics, and comparison JSON."""
+
+    output_dir = Path(out_dir)
+    output_dir.mkdir(parents=True, exist_ok=True)
+    predictions_path = output_dir / "constrained_predictions.csv"
+    metrics_path = output_dir / "constrained_metrics.json"
+    comparison_path = output_dir / "comparison.json"
+
+    fieldnames = [
+        "index",
+        "sample_id",
+        "expected_gloss",
+        "free_generation_prediction",
+        "constrained_prediction",
+        "constrained_correct",
+        "top_scores",
+        "mode",
+    ]
+    with predictions_path.open("w", encoding="utf-8", newline="") as handle:
+        writer = csv.DictWriter(handle, fieldnames=fieldnames)
+        writer.writeheader()
+        for row in rows:
+            writer.writerow({field: row[field] for field in fieldnames})
+
+    metrics_path.write_text(json.dumps(metrics, indent=2) + "\n", encoding="utf-8")
+    comparison_path.write_text(json.dumps(comparison, indent=2) + "\n", encoding="utf-8")
+    return ConstrainedEvaluationArtifacts(
+        constrained_predictions_csv=predictions_path,
+        constrained_metrics_json=metrics_path,
+        comparison_json=comparison_path,
+    )
 
 
 def _record_sample_key(record: Mapping[str, Any]) -> str:
