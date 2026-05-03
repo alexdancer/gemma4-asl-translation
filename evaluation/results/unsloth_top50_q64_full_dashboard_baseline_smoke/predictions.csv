@@ -1,0 +1,4 @@
+index,sample_id,expected_gloss,predicted_gloss,raw_model_output,valid_label,correct,mode
+0,hearing_26986,hearing,thank,thank,False,False,real
+1,decide_15040,decide,decide,decide,True,True,real
+2,black_06483,black,hello,hello,False,False,real

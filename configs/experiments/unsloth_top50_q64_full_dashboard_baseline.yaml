@@ -1,0 +1,81 @@
+# Unsloth Dashboard experiment record
+# Purpose: proof-of-learning gate for ASL pose -> gloss classification.
+# Note: This file is for project tracking/reproducibility. The Unsloth dashboard
+# fields are entered manually unless/until we move to a coded training pipeline.
+
+experiment:
+  name: unsloth_top50_q64_full_dashboard_baseline
+  status: planned
+  objective: proof_of_learning
+  notes:
+    - Train on Top-50 ASL glosses first before scaling to full 250 glosses.
+    - Dashboard is used for training convenience; custom project script should handle evaluation.
+    - Current full-250 1-epoch checkpoint is a smoke-test artifact only, not proof metrics.
+
+model:
+  base_model: unsloth/gemma-4-E4B-it
+  method: QLoRA_4bit
+  context_length: 2048
+
+artifacts:
+  source_compact_dataset: data/processed/exports/asl_unsloth_pose_train_q64_full.jsonl
+  train_dataset: data/processed/exports/asl_unsloth_pose_train_q64_full_top50_train.jsonl
+  val_dataset: data/processed/exports/asl_unsloth_pose_train_q64_full_top50_val.jsonl
+  test_dataset: data/processed/exports/asl_unsloth_pose_train_q64_full_top50_test.jsonl
+  expected_checkpoint_dir: checkpoints/unsloth_gemma-4-E4B-it_q64_full_top50_baseline
+  expected_eval_dir: evaluation/results/unsloth_top50_q64_full_dashboard_baseline
+
+dataset:
+  subset: top50
+  encoding: q64_full
+  split_strategy: random_stratified
+  split_ratio:
+    train: 0.70
+    val: 0.15
+    test: 0.15
+  seed: 42
+  leakage_policy: test_examples_must_not_be_seen_during_training
+
+training:
+  epochs: 3
+  learning_rate: 0.0002
+  batch_size: 1
+  gradient_accumulation_steps: 4
+  optimizer: adamw_8bit
+  save_strategy: epoch_or_every_100_steps
+  dashboard_fields:
+    train_file: data/processed/exports/asl_unsloth_pose_train_q64_full_top50_train.jsonl
+    eval_file: data/processed/exports/asl_unsloth_pose_train_q64_full_top50_val.jsonl
+    max_sequence_length: 2048
+    use_epochs: true
+    epochs: 3
+    learning_rate: 0.0002
+    optimization: adamw_8bit
+
+evaluation:
+  evaluator: custom_project_script
+  primary_metric: strict_normalized_exact_match_top1_accuracy
+  success_bar:
+    top50_target_accuracy: 0.70
+    top50_stretch_accuracy: 0.80
+  generation:
+    max_new_tokens: 8
+    temperature: 0.0
+    output_contract: gloss_only
+  secondary_metrics:
+    - invalid_output_rate
+    - per_class_accuracy
+    - confusion_matrix
+    - predictions_csv
+
+sweep_options:
+  if_underfitting:
+    epochs: [5]
+    learning_rate: [0.0002, 0.0001]
+    lora_rank: [16, 32]
+  if_overfitting:
+    epochs: [1, 2]
+    learning_rate: [0.0001, 0.00005]
+  if_oom_or_slow:
+    encoding: [q64_stride2, q64_summary]
+    gradient_accumulation_steps: [1, 2]

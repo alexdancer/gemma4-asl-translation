@@ -1,6 +1,6 @@
 {
   "scripts": {
-    "test": "python -m pytest",
-    "typecheck": "python -m compileall src scripts tests"
+    "test": "python scripts/project_python.py pytest",
+    "typecheck": "python scripts/project_python.py compileall src scripts tests"
   }
 }

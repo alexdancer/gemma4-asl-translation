@@ -45,7 +45,7 @@ def extract_pose_archives(
         for row in tqdm(metadata.itertuples(index=False), total=len(metadata), desc="Extracting poses"):
             video_path = getattr(row, "video_path", None)
             sample_id = str(getattr(row, "sample_id"))
-            if not video_path:
+            if video_path is None or (isinstance(video_path, float) and pd.isna(video_path)) or str(video_path).strip() == "":
                 LOGGER.warning("Skipping %s because video_path is missing", sample_id)
                 error_records.append({"sample_id": sample_id, "error": "missing_video_path"})
                 continue

@@ -1,0 +1,6 @@
+index,sample_id,expected_gloss,predicted_gloss,raw_model_output,valid_label,correct,mode
+0,hearing_26986,hearing,fish,fish,True,False,mock
+1,decide_15040,decide,blue,blue,True,False,mock
+2,black_06483,black,cow,cow,True,False,mock
+3,center_09719,center,decide,decide,True,False,mock
+4,clothes_11305,clothes,fine,fine,True,False,mock

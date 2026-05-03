@@ -137,8 +137,10 @@ class PoseToTextDataset(Dataset[Dict[str, Any]]):
     ) -> None:
         if annotations.empty:
             raise ValueError("annotations must not be empty.")
-        if "pose_path" not in annotations.columns or "gloss" not in annotations.columns:
-            raise KeyError("annotations must contain 'pose_path' and 'gloss' columns.")
+        if "gloss" not in annotations.columns:
+            raise KeyError("annotations must contain a 'gloss' column.")
+        if "pose_path" not in annotations.columns and "sample_id" not in annotations.columns:
+            raise KeyError("annotations must contain 'pose_path' or 'sample_id' for pose archive resolution.")
 
         self.annotations = annotations.reset_index(drop=True)
         self.pose_root = None if pose_root is None else Path(pose_root)
@@ -174,8 +176,14 @@ class PoseToTextDataset(Dataset[Dict[str, Any]]):
     def __len__(self) -> int:
         return len(self.annotations)
 
-    def _resolve_pose_path(self, raw_path: str) -> Path:
-        pose_path = Path(raw_path)
+    def _resolve_pose_path(self, row: Mapping[str, Any]) -> Path:
+        raw_path = row.get("pose_path")
+        if pd.isna(raw_path) or str(raw_path).strip() == "":
+            if "sample_id" not in row or pd.isna(row["sample_id"]):
+                raise KeyError("annotation row must contain 'pose_path' or 'sample_id'.")
+            raw_path = f"{row['sample_id']}.npz"
+
+        pose_path = Path(str(raw_path))
         if not pose_path.is_absolute() and self.pose_root is not None:
             pose_path = self.pose_root / pose_path
         return pose_path
@@ -203,7 +211,7 @@ class PoseToTextDataset(Dataset[Dict[str, Any]]):
 
     def __getitem__(self, index: int) -> Dict[str, Any]:
         row = self.annotations.iloc[index]
-        pose_path = self._resolve_pose_path(str(row["pose_path"]))
+        pose_path = self._resolve_pose_path(row)
         pose_components = self._load_pose_archive(pose_path)
         pose_components = augment_pose_sequence(pose_components, self.augmentation)
         pose_features = flatten_pose_components(
