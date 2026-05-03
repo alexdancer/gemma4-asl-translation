@@ -14,6 +14,7 @@ This repo is the project workspace for the ASL Top-50 q64 proof-of-learning and 
 - `src/evaluation/unsloth_asl.py` — evaluation contract, metrics, artifacts
 - `src/demo/output_contract.py` — demo output contract
 - `src/demo/prerecorded_q64.py` — known-good prerecorded q64 demo path
+- `src/demo/constrained_top50.py` — optional diagnostic/demo-safe constrained Top-50 fallback
 - `src/demo/fallback_a.py` / `src/demo/fallback_b.py` — fallback demo modes
 
 ## Script adapters
@@ -22,6 +23,7 @@ This repo is the project workspace for the ASL Top-50 q64 proof-of-learning and 
 - `scripts/evaluate_unsloth_asl_constrained.py`
 - `scripts/evaluate_unsloth_asl_prompt_control.py`
 - `scripts/run_prerecorded_q64_demo.py`
+- `scripts/run_constrained_top50_demo.py`
 - `scripts/run_prerecorded_fallback.py`
 - `scripts/run_precomputed_replay.py`
 
@@ -50,4 +52,5 @@ python scripts/evaluate_unsloth_asl.py --mock \
 
 - Free-generation strict normalized exact-match remains the primary proof metric.
 - Constrained and prompt-control paths are diagnostic modules.
+- Demo-safe constrained Top-50 inference is an optional fallback for scoped demos; it always chooses from canonical labels and is not a primary proof metric.
 - Demo paths are explicitly scoped to supported Top-50 signs and are not production-grade ASL recognition.
