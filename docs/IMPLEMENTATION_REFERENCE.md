@@ -18,6 +18,8 @@ This document is the current code map for the Top-50 proof/evaluation/demo flow.
   - precomputed replay fallback seam
 - `src/demo/prerecorded_q64.py`
   - demo-scoped known-good q64 record path with readiness artifact output
+- `src/demo/prompt_control_reference.py`
+  - prompt-control free-generation fixture selector for stable smoke/demo samples
 
 ## Main Script Adapters
 
@@ -27,6 +29,8 @@ This document is the current code map for the Top-50 proof/evaluation/demo flow.
   - constrained diagnostic and root-cause report path
 - `scripts/evaluate_unsloth_asl_prompt_control.py`
   - prompt/output-control experiment path
+- `scripts/build_prompt_control_reference.py`
+  - selects one smoke sample plus demo samples that are correct under prompt-control free generation and writes `evaluation/results/prompt_control_reference/reference.json`
 - `scripts/run_prerecorded_q64_demo.py`
   - known-good demo path runner
 - `scripts/run_prerecorded_fallback.py`
@@ -46,4 +50,7 @@ This document is the current code map for the Top-50 proof/evaluation/demo flow.
 
 - This project treats free-generation strict normalized exact-match as the primary proof metric.
 - Constrained scoring and prompt-control are diagnostic modules, not replacements for the primary metric.
+- Build the prompt-control reference fixture with:
+  `python scripts/project_python.py scripts.build_prompt_control_reference`
+  Use `--predictions-csv evaluation/results/unsloth_top50_q64_full_dashboard_baseline_prompt_control/predictions.csv` to select from an existing prompt-control run without loading the checkpoint.
 - Demo paths are explicitly scoped to supported Top-50 signs and are not production-grade ASL recognition.
