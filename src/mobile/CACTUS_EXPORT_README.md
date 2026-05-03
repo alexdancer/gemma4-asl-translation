@@ -7,7 +7,7 @@ Cactus-style INT4 bundle for mobile integration work.
 
 ```text
 src/mobile/cactus_export.py
-src/mobile/test_cactus_export.py
+tests/test_cactus_export.py
 src/mobile/CACTUS_EXPORT_README.md
 ```
 
@@ -72,7 +72,7 @@ runtime.
 ## Tests
 
 ```bash
-venv/bin/python -m pytest -q src/mobile/test_cactus_export.py
+venv/bin/python -m pytest -q tests/test_cactus_export.py
 ```
 
 The tests cover quantization range and shape, JSON serialization, file output,

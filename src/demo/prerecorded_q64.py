@@ -7,12 +7,16 @@ visible gloss output. It is not a production ASL recognizer.
 
 from __future__ import annotations
 
-import json
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Mapping
 
 from src.demo.output_contract import DemoOutput, DemoOutputConfig, format_demo_output
+from src.demo.readiness_artifacts import (
+    DEMO_CLAIMS_PRERECORDED_Q64,
+    DEMO_SCOPE_PRERECORDED_Q64,
+    write_prerecorded_q64_readiness_artifact,
+)
 from src.evaluation.unsloth_asl import (
     GlossPredictor,
     RealUnslothASLGlossPredictor,
@@ -21,11 +25,8 @@ from src.evaluation.unsloth_asl import (
     load_q64_jsonl,
 )
 
-DEMO_SCOPE = "demo_top50_prerecorded_q64"
-DEMO_CLAIMS = (
-    "Demo-scoped Top-50 q64 pose-to-gloss checkpoint path; "
-    "not production ASL recognition."
-)
+DEMO_SCOPE = DEMO_SCOPE_PRERECORDED_Q64
+DEMO_CLAIMS = DEMO_CLAIMS_PRERECORDED_Q64
 
 
 @dataclass(frozen=True)
@@ -95,15 +96,17 @@ def run_prerecorded_q64_demo(
         config.output_config,
     )
 
-    artifact_path = _write_demo_artifact(
+    artifact_path = write_prerecorded_q64_readiness_artifact(
         out_dir=out_dir,
         model_path=checkpoint_path,
         input_record_id=config.record_id,
         inference_mode=inference.mode,
         raw_prediction=inference.raw_model_output,
         normalized_gloss=inference.predicted_gloss,
+        visible_gloss=output.display_text,
+        status=output.status,
         valid_label=inference.valid_label,
-        output=output,
+        confidence_proxy_used_for_display=output.confidence,
     )
     return PrerecordedQ64DemoResult(
         model_path=str(checkpoint_path),
@@ -125,33 +128,3 @@ def _select_record(records: list[dict[str, Any]], record_id: str) -> Mapping[str
     raise ValueError(f"record_id not found in q64 records: {record_id}")
 
 
-def _write_demo_artifact(
-    *,
-    out_dir: Path,
-    model_path: Path,
-    input_record_id: str,
-    inference_mode: str,
-    raw_prediction: str,
-    normalized_gloss: str | None,
-    valid_label: bool,
-    output: DemoOutput,
-) -> Path:
-    out_dir.mkdir(parents=True, exist_ok=True)
-    artifact_path = out_dir / "prerecorded_q64_demo_readiness.json"
-    payload = {
-        "scope": DEMO_SCOPE,
-        "claims": DEMO_CLAIMS,
-        "model_path": str(model_path),
-        "input_record_id": input_record_id,
-        "inference_mode": inference_mode,
-        "raw_prediction": raw_prediction,
-        "normalized_gloss": normalized_gloss,
-        "visible_gloss": output.display_text,
-        "status": output.status,
-        "valid_label": valid_label,
-        "confidence": None,
-        "confidence_available": False,
-        "confidence_proxy_used_for_display": output.confidence,
-    }
-    artifact_path.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
-    return artifact_path
