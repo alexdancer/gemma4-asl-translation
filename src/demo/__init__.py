@@ -13,6 +13,11 @@ from src.demo.prerecorded_q64 import (
     PrerecordedQ64DemoResult,
     run_prerecorded_q64_demo,
 )
+from src.demo.python_video_prompt_control import (
+    PythonVideoPromptControlSmokeConfig,
+    PythonVideoPromptControlSmokeResult,
+    run_python_video_prompt_control_smoke,
+)
 from src.demo.readiness_artifacts import write_prerecorded_q64_readiness_artifact
 
 __all__ = [
@@ -24,9 +29,12 @@ __all__ = [
     "DEMO_CLAIMS",
     "PrerecordedQ64DemoConfig",
     "PrerecordedQ64DemoResult",
+    "PythonVideoPromptControlSmokeConfig",
+    "PythonVideoPromptControlSmokeResult",
     "format_demo_output",
     "load_demo_output_config",
     "run_demo_inference_once",
     "run_prerecorded_q64_demo",
+    "run_python_video_prompt_control_smoke",
     "write_prerecorded_q64_readiness_artifact",
 ]
