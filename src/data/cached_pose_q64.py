@@ -10,7 +10,6 @@ from typing import Any, Mapping, Sequence
 
 import numpy as np
 
-from src.data.pose_to_text_dataset import flatten_pose_components
 from src.data.q64_encoding import ALPHABET, encode_frames_q64
 from src.evaluation.unsloth_asl import load_manifest_labels, load_q64_jsonl, normalize_gloss
 
@@ -79,14 +78,28 @@ def verify_cached_pose_q64(config: CachedPoseQ64VerificationConfig) -> CachedPos
     if archive_sample_id is not None and archive_sample_id != sample_id:
         raise ValueError(f"pose archive sample_id mismatch: archive has {archive_sample_id!r}, got {sample_id!r}")
 
-    features = flatten_pose_components(
+    features = _flatten_pose_components(
         components,
         include_components=("body", "left_hand", "right_hand", "face"),
         normalize=True,
     )
+    feature_count = int(features.shape[1])
+    source_frame_count = int(features.shape[0])
+    target_frame_count = source_frame_count
+    if source_record is not None:
+        source_shape = _parse_reference_shape(str(source_record.get("input", "")))
+        if source_shape is None:
+            raise ValueError(f"reference q64 record missing shape metadata for {sample_id}.")
+        target_frame_count, expected_feature_count = source_shape
+        if expected_feature_count != feature_count:
+            raise ValueError(
+                f"reference q64 feature mismatch for {sample_id}: "
+                f"records file has {expected_feature_count}, generated {feature_count}"
+            )
+        features = _resample_feature_frames(features, target_frame_count)
+
     frames = features.tolist()
     frame_count = int(features.shape[0])
-    feature_count = int(features.shape[1])
     if frame_count <= 0 or feature_count <= 0:
         raise ValueError(f"Pose archive must contain at least one non-empty frame: {pose_path}")
 
@@ -120,6 +133,7 @@ def verify_cached_pose_q64(config: CachedPoseQ64VerificationConfig) -> CachedPos
         "pose_path": str(pose_path),
         "manifest_path": str(config.manifest_path),
         "records_path": None if config.records_path is None else str(config.records_path),
+        "source_frames": source_frame_count,
         "frames": frame_count,
         "features_per_frame": feature_count,
         "q64_jsonl_path": str(jsonl_path),
@@ -168,6 +182,59 @@ def build_cached_pose_q64_record(
         "input": input_text,
         "output": expected_gloss,
     }
+
+
+def _flatten_pose_components(
+    pose_components: Mapping[str, np.ndarray],
+    *,
+    include_components: Sequence[str],
+    normalize: bool,
+) -> np.ndarray:
+    arrays: list[np.ndarray] = []
+    timesteps: int | None = None
+
+    for name in include_components:
+        component = pose_components.get(name)
+        if component is None:
+            continue
+        if component.ndim != 3:
+            raise ValueError(f"Pose component '{name}' must have shape (T, J, C).")
+        if timesteps is None:
+            timesteps = int(component.shape[0])
+        elif int(component.shape[0]) != timesteps:
+            raise ValueError("All pose components must share the same sequence length.")
+        arrays.append(component.reshape(component.shape[0], -1))
+
+    if not arrays or timesteps is None:
+        raise ValueError("No pose components were available to flatten.")
+
+    flattened = np.concatenate(arrays, axis=1).astype(np.float32)
+    return _normalize_pose_embeddings(flattened) if normalize else flattened
+
+
+def _normalize_pose_embeddings(pose_embeddings: np.ndarray, epsilon: float = 1e-6) -> np.ndarray:
+    centered = pose_embeddings.astype(np.float32) - pose_embeddings.mean(axis=0, keepdims=True)
+    scale = pose_embeddings.std(axis=0, keepdims=True)
+    normalized = centered / np.maximum(scale, epsilon)
+    normalized[~np.isfinite(normalized)] = 0.0
+    return normalized.astype(np.float32)
+
+
+def _resample_feature_frames(features: np.ndarray, target_frames: int) -> np.ndarray:
+    if target_frames <= 0:
+        raise ValueError(f"reference q64 frame count must be positive, got {target_frames}.")
+    source_frames = int(features.shape[0])
+    if source_frames == target_frames:
+        return features
+    if source_frames == 1:
+        return np.repeat(features, target_frames, axis=0).astype(np.float32)
+
+    source_positions = np.arange(source_frames, dtype=np.float32)
+    target_positions = np.linspace(0, source_frames - 1, target_frames, dtype=np.float32)
+    resampled = np.empty((target_frames, features.shape[1]), dtype=np.float32)
+    for feature_index in range(features.shape[1]):
+        resampled[:, feature_index] = np.interp(target_positions, source_positions, features[:, feature_index])
+    return resampled
 
 
 def _load_pose_archive(pose_path: Path) -> tuple[dict[str, np.ndarray], str | None]:

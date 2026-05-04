@@ -40,13 +40,13 @@ def _write_contract_files(tmp_path: Path, *, reference_input: str | None = None)
     return manifest_path, records_path
 
 
-def _write_pose_archive(path: Path, *, sample_id: str = "hearing_26986") -> None:
+def _write_pose_archive(path: Path, *, sample_id: str = "hearing_26986", frames: int = 2) -> None:
     np.savez(
         path,
         sample_id=np.asarray(sample_id),
-        body=np.ones((2, 17, 3), dtype=np.float32),
-        left_hand=np.ones((2, 21, 3), dtype=np.float32) * 2,
-        right_hand=np.ones((2, 21, 3), dtype=np.float32) * 3,
+        body=np.ones((frames, 17, 3), dtype=np.float32),
+        left_hand=np.ones((frames, 21, 3), dtype=np.float32) * 2,
+        right_hand=np.ones((frames, 21, 3), dtype=np.float32) * 3,
     )
 
 
@@ -201,12 +201,36 @@ def test_cached_pose_verification_fails_for_identity_and_gloss_mismatch(tmp_path
         )
 
 
-def test_cached_pose_verification_fails_for_reference_q64_metadata_mismatch(tmp_path: Path) -> None:
+def test_cached_pose_verification_resamples_cached_frames_to_reference_q64_shape(tmp_path: Path) -> None:
     manifest_path, records_path = _write_contract_files(tmp_path, reference_input=_reference_input(frames=12, features=177))
+    pose_path = tmp_path / "hearing_26986.npz"
+    _write_pose_archive(pose_path, frames=60)
+
+    result = verify_cached_pose_q64(
+        CachedPoseQ64VerificationConfig(
+            pose_path=pose_path,
+            sample_id="hearing_26986",
+            expected_gloss="hearing",
+            manifest_path=manifest_path,
+            records_path=records_path,
+            out_dir=tmp_path / "verification_artifacts",
+        )
+    )
+
+    generated = json.loads(result.jsonl_path.read_text(encoding="utf-8"))
+    report = json.loads(result.report_path.read_text(encoding="utf-8"))
+    assert result.frames == 12
+    assert "frames=12 features_per_frame=177" in generated["input"]
+    assert len(generated["input"].split("pose_q64=", 1)[1].split("|")) == 12
+    assert report["source_frames"] == 60
+
+
+def test_cached_pose_verification_fails_for_reference_q64_feature_mismatch(tmp_path: Path) -> None:
+    manifest_path, records_path = _write_contract_files(tmp_path, reference_input=_reference_input(frames=2, features=176))
     pose_path = tmp_path / "hearing_26986.npz"
     _write_pose_archive(pose_path)
 
-    with pytest.raises(ValueError, match="reference q64 shape mismatch"):
+    with pytest.raises(ValueError, match="reference q64 feature mismatch"):
         verify_cached_pose_q64(
             CachedPoseQ64VerificationConfig(
                 pose_path=pose_path,

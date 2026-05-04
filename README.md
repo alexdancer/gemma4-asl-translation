@@ -48,9 +48,9 @@ python scripts/data/verify_cached_pose_q64.py \
   --expected-gloss hearing
 ```
 
-The verifier compares the generated q64 shape metadata with the matching
-record in `--records`; archives with different frame counts fail with a
-metadata mismatch instead of writing evaluation metrics or readiness artifacts.
+The verifier uses the matching record in `--records` as the q64 shape contract;
+cached archives are resampled to that frame count and feature-count mismatches
+fail before writing evaluation metrics or readiness artifacts.
 
 ## Docs
 

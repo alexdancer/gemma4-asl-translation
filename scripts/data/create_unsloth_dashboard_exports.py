@@ -12,7 +12,11 @@ from __future__ import annotations
 import argparse
 import csv
 import json
+import sys
 from pathlib import Path
+from statistics import mean
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from src.data.q64_encoding import ALPHABET, encode_frames_q64, encode_summary_q64
 

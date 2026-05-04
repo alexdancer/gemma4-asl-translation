@@ -61,5 +61,5 @@ This document is the current code map for the Top-50 proof/evaluation/demo flow.
 - Verify one cached pose archive can emit the shared q64 contract with:
   `python scripts/data/verify_cached_pose_q64.py --pose-path path/to/sample.npz --sample-id hearing_26986 --expected-gloss hearing`
   The default artifacts are written under `data/processed/verification/cached_pose_q64`.
-  The verifier also compares generated q64 encoding, frame count, feature count, and payload shape with the matching record from `--records`.
+  The verifier uses the matching record from `--records` as the q64 shape contract, resamples cached pose frames to that frame count, and rejects encoding, feature-count, or payload-shape mismatches.
 - Demo paths are explicitly scoped to supported Top-50 signs and are not production-grade ASL recognition.
