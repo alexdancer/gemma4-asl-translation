@@ -12,6 +12,8 @@ _EXPORTS = {
     "DEFAULT_WLASL_METADATA_URL": "src.data.wlasl_loader",
     "POSE_COMPONENTS": "src.data.pose_to_text_dataset",
     "PoseAugmentationConfig": "src.data.pose_to_text_dataset",
+    "CachedPoseQ64VerificationConfig": "src.data.cached_pose_q64",
+    "CachedPoseQ64VerificationResult": "src.data.cached_pose_q64",
     "PoseExtractionError": "src.data.pose_extractor",
     "PoseExtractor": "src.data.pose_extractor",
     "PoseToTextDataset": "src.data.pose_to_text_dataset",
@@ -29,6 +31,7 @@ _EXPORTS = {
     "save_pose_sequence": "src.data.pose_extractor",
     "save_splits": "src.data.create_splits",
     "stratified_split": "src.data.create_splits",
+    "verify_cached_pose_q64": "src.data.cached_pose_q64",
 }
 
 __all__ = sorted(_EXPORTS)

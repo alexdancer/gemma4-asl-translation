@@ -20,9 +20,14 @@ This document is the current code map for the Top-50 proof/evaluation/demo flow.
   - demo-scoped known-good q64 record path with readiness artifact output
 - `src/demo/prompt_control_reference.py`
   - prompt-control free-generation fixture selector for stable smoke/demo samples
+- `src/data/cached_pose_q64.py`
+  - cached/precomputed pose archive to q64 JSONL compatibility verifier
+  - writes dedicated verification artifacts outside evaluation metrics and demo readiness outputs
 
 ## Main Script Adapters
 
+- `scripts/data/verify_cached_pose_q64.py`
+  - verifies one known Top-50 cached pose archive against manifest labels and q64 sample records
 - `scripts/evaluation/evaluate_unsloth_asl.py`
   - held-out free-generation evaluation (mock or real)
 - `scripts/evaluation/evaluate_unsloth_asl_constrained.py`
@@ -53,4 +58,8 @@ This document is the current code map for the Top-50 proof/evaluation/demo flow.
 - Build the prompt-control reference fixture with:
   `python scripts/project_python.py scripts.evaluation.build_prompt_control_reference`
   Use `--predictions-csv evaluation/results/unsloth_top50_q64_full_dashboard_baseline_prompt_control/predictions.csv` to select from an existing prompt-control run without loading the checkpoint.
+- Verify one cached pose archive can emit the shared q64 contract with:
+  `python scripts/data/verify_cached_pose_q64.py --pose-path path/to/sample.npz --sample-id hearing_26986 --expected-gloss hearing`
+  The default artifacts are written under `data/processed/verification/cached_pose_q64`.
+  The verifier also compares generated q64 encoding, frame count, feature count, and payload shape with the matching record from `--records`.
 - Demo paths are explicitly scoped to supported Top-50 signs and are not production-grade ASL recognition.

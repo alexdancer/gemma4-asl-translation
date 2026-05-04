@@ -19,6 +19,7 @@ This repo is the project workspace for the ASL Top-50 q64 proof-of-learning and 
 
 ## Script adapters
 
+- `scripts/data/verify_cached_pose_q64.py`
 - `scripts/evaluation/evaluate_unsloth_asl.py`
 - `scripts/evaluation/evaluate_unsloth_asl_constrained.py`
 - `scripts/evaluation/evaluate_unsloth_asl_prompt_control.py`
@@ -39,7 +40,17 @@ python scripts/evaluation/evaluate_unsloth_asl.py --mock \
   --test-file data/processed/exports/asl_unsloth_pose_train_q64_full_top50_test.jsonl \
   --manifest data/processed/exports/asl_unsloth_pose_train_q64_full_top50_manifest.json \
   --out-dir evaluation/results/unsloth_asl_mock_smoke --max-samples 50
+
+# cached pose -> q64 verification path
+python scripts/data/verify_cached_pose_q64.py \
+  --pose-path path/to/hearing_26986.npz \
+  --sample-id hearing_26986 \
+  --expected-gloss hearing
 ```
+
+The verifier compares the generated q64 shape metadata with the matching
+record in `--records`; archives with different frame counts fail with a
+metadata mismatch instead of writing evaluation metrics or readiness artifacts.
 
 ## Docs
 
