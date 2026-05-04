@@ -7,13 +7,13 @@
 - `gemma_finetune.py` used by:
   - `scripts/legacy/test_finetuning.py`
   - `scripts/legacy/phase2a_run.py`
-  - `tests/test_gemma_finetune.py`
+  - `tests/training/test_gemma_finetune.py`
 - `gemma_loader.py` used by:
   - `scripts/legacy/test_finetuning.py`
   - `src/mobile/cactus_export.py`
 - `tcn_baseline.py` used by:
   - `scripts/demo/run_prerecorded_fallback.py`
-  - `tests/test_tcn_baseline.py`
+  - `tests/training/test_tcn_baseline.py`
 - `utils.py` used by:
   - `src/models/gemma_finetune.py`
   - `src/data/pose_to_text_dataset.py`
@@ -45,7 +45,7 @@ If we are no longer running local fine-tuning in this repo:
    - `scripts/legacy/test_finetuning.py`
    - `scripts/legacy/phase2a_run.py` (only if fully retired)
 2. Remove tests tied only to retired training path:
-   - `tests/test_gemma_finetune.py`
+   - `tests/training/test_gemma_finetune.py`
 3. Remove `src/models/gemma_finetune.py` once no imports remain.
 
 Gate:

@@ -45,11 +45,11 @@ This document is the current code map for the Top-50 proof/evaluation/demo flow.
 
 ## Test Surface
 
-- `tests/test_unsloth_asl_evaluator.py`
-- `tests/test_prerecorded_q64_demo.py`
-- `tests/test_prerecorded_fallback.py`
-- `tests/test_precomputed_replay_fallback.py`
-- `tests/test_demo_output_contract.py`
+- `tests/evaluation/test_unsloth_asl_evaluator.py`
+- `tests/demo/test_prerecorded_q64_demo.py`
+- `tests/demo/test_prerecorded_fallback.py`
+- `tests/demo/test_precomputed_replay_fallback.py`
+- `tests/demo/test_demo_output_contract.py`
 
 ## Notes
 

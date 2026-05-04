@@ -63,6 +63,11 @@ def main(argv: Sequence[str] | None = None) -> int:
 
 def _train_demo_model(feature_dim: int, sequence_length: int, glosses: Sequence[str]):
     from src.models.tcn_baseline import TCNTrainingConfig, train_tcn_baseline
+    import torch
+
+    # Keep prerecorded fallback smoke output deterministic across runs.
+    torch.manual_seed(0)
+    np.random.seed(0)
 
     low_samples = np.full((6, sequence_length, feature_dim), 0.05, dtype=np.float32)
     high_samples = np.full((6, sequence_length, feature_dim), 0.85, dtype=np.float32)

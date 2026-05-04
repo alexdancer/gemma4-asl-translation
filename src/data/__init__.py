@@ -17,6 +17,9 @@ _EXPORTS = {
     "PoseExtractionError": "src.data.pose_extractor",
     "PoseExtractor": "src.data.pose_extractor",
     "PoseToTextDataset": "src.data.pose_to_text_dataset",
+    "VideoPoseQ64SmokeConfig": "src.data.video_pose_q64_smoke",
+    "VideoPoseQ64SmokeError": "src.data.video_pose_q64_smoke",
+    "VideoPoseQ64SmokeResult": "src.data.video_pose_q64_smoke",
     "WLASLDataset": "src.data.wlasl_loader",
     "WLASLVideoRecord": "src.data.wlasl_loader",
     "augment_pose_sequence": "src.data.pose_to_text_dataset",
@@ -31,6 +34,7 @@ _EXPORTS = {
     "save_pose_sequence": "src.data.pose_extractor",
     "save_splits": "src.data.create_splits",
     "stratified_split": "src.data.create_splits",
+    "run_video_pose_q64_smoke": "src.data.video_pose_q64_smoke",
     "verify_cached_pose_q64": "src.data.cached_pose_q64",
 }
 
