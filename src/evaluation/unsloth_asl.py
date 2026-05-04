@@ -830,7 +830,7 @@ def _dependency_error_message() -> str:
     return (
         "Real Unsloth ASL evaluation requires torch, unsloth, transformers, and peft. "
         "Install project dependencies with `pip install -r requirements.txt`, or run "
-        "`scripts/evaluate_unsloth_asl.py --mock ...` for fast local contract testing."
+        "`scripts/evaluation/evaluate_unsloth_asl.py --mock ...` for fast local contract testing."
     )
 
 

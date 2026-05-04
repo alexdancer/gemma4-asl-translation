@@ -11,7 +11,7 @@ checkpoint path is reviewed.
 ## Smoke Run
 
 ```bash
-./venv/bin/python scripts/run_prerecorded_q64_demo.py \
+./venv/bin/python scripts/demo/run_prerecorded_q64_demo.py \
   --checkpoint checkpoints/unsloth_gemma-4-E4B-it_q64_full_top50_baseline \
   --records data/processed/exports/asl_unsloth_pose_train_q64_full_top50_test.jsonl \
   --manifest data/processed/exports/asl_unsloth_pose_train_q64_full_top50_manifest.json \

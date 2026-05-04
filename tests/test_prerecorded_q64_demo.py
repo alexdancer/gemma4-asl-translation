@@ -6,7 +6,7 @@ import json
 from pathlib import Path
 from typing import Any, Mapping
 
-from scripts.run_prerecorded_q64_demo import main as run_prerecorded_q64_demo_main
+from scripts.demo.run_prerecorded_q64_demo import main as run_prerecorded_q64_demo_main
 from src.demo.prerecorded_q64 import PrerecordedQ64DemoConfig, run_prerecorded_q64_demo
 
 

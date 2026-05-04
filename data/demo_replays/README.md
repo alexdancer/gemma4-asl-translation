@@ -4,7 +4,7 @@ Fallback B bypasses live capture, feature extraction, and model inference. Use
 it only when the demo needs a guaranteed coherent ending:
 
 ```bash
-python scripts/run_precomputed_replay.py \
+python scripts/demo/run_precomputed_replay.py \
   --replay-path data/demo_replays/fallback_b_judge_demo.json \
   --no-sleep
 ```

@@ -10,13 +10,13 @@ source venv/bin/activate
 ## 2) Prepare Top-50 split artifacts
 
 ```bash
-python scripts/prepare_training_data.py --top50-only
+python scripts/data/prepare_training_data.py --top50-only
 ```
 
 ## 3) Run evaluator contract smoke test (no checkpoint required)
 
 ```bash
-python scripts/evaluate_unsloth_asl.py \
+python scripts/evaluation/evaluate_unsloth_asl.py \
   --mock \
   --test-file data/processed/exports/asl_unsloth_pose_train_q64_full_top50_test.jsonl \
   --manifest data/processed/exports/asl_unsloth_pose_train_q64_full_top50_manifest.json \
@@ -27,7 +27,7 @@ python scripts/evaluate_unsloth_asl.py \
 ## 4) Run real held-out evaluation (checkpoint required)
 
 ```bash
-python scripts/evaluate_unsloth_asl.py \
+python scripts/evaluation/evaluate_unsloth_asl.py \
   --checkpoint checkpoints/unsloth_gemma-4-E4B-it_q64_full_top50_baseline \
   --test-file data/processed/exports/asl_unsloth_pose_train_q64_full_top50_test.jsonl \
   --manifest data/processed/exports/asl_unsloth_pose_train_q64_full_top50_manifest.json \
@@ -39,19 +39,19 @@ python scripts/evaluate_unsloth_asl.py \
 ### Constrained diagnostic
 
 ```bash
-python scripts/evaluate_unsloth_asl_constrained.py
+python scripts/evaluation/evaluate_unsloth_asl_constrained.py
 ```
 
 ### Prompt-control diagnostic
 
 ```bash
-python scripts/evaluate_unsloth_asl_prompt_control.py
+python scripts/evaluation/evaluate_unsloth_asl_prompt_control.py
 ```
 
 ## 6) Prerecorded known-good q64 demo path
 
 ```bash
-python scripts/run_prerecorded_q64_demo.py \
+python scripts/demo/run_prerecorded_q64_demo.py \
   --checkpoint checkpoints/unsloth_gemma-4-E4B-it_q64_full_top50_baseline \
   --records data/processed/exports/asl_unsloth_pose_train_q64_full_top50_test.jsonl \
   --manifest data/processed/exports/asl_unsloth_pose_train_q64_full_top50_manifest.json \
@@ -62,7 +62,7 @@ python scripts/run_prerecorded_q64_demo.py \
 For dependency-light smoke checks:
 
 ```bash
-python scripts/run_prerecorded_q64_demo.py \
+python scripts/demo/run_prerecorded_q64_demo.py \
   --mock \
   --checkpoint checkpoints/unsloth_gemma-4-E4B-it_q64_full_top50_baseline \
   --records data/processed/exports/asl_unsloth_pose_train_q64_full_top50_test.jsonl \

@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from scripts.run_precomputed_replay import main as run_replay_main
+from scripts.demo.run_precomputed_replay import main as run_replay_main
 from src.demo.fallback_b import ReplayRunConfig, run_precomputed_replay
 
 

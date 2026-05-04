@@ -9,7 +9,7 @@ import sys
 from pathlib import Path
 from typing import Sequence
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from src.demo.prerecorded_q64 import DEMO_SCOPE, PrerecordedQ64DemoConfig, run_prerecorded_q64_demo
 from src.evaluation.unsloth_asl import MockASLGlossPredictor, load_manifest_labels

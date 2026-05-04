@@ -19,13 +19,13 @@ This repo is the project workspace for the ASL Top-50 q64 proof-of-learning and 
 
 ## Script adapters
 
-- `scripts/evaluate_unsloth_asl.py`
-- `scripts/evaluate_unsloth_asl_constrained.py`
-- `scripts/evaluate_unsloth_asl_prompt_control.py`
-- `scripts/run_prerecorded_q64_demo.py`
-- `scripts/run_constrained_top50_demo.py`
-- `scripts/run_prerecorded_fallback.py`
-- `scripts/run_precomputed_replay.py`
+- `scripts/evaluation/evaluate_unsloth_asl.py`
+- `scripts/evaluation/evaluate_unsloth_asl_constrained.py`
+- `scripts/evaluation/evaluate_unsloth_asl_prompt_control.py`
+- `scripts/demo/run_prerecorded_q64_demo.py`
+- `scripts/demo/run_constrained_top50_demo.py`
+- `scripts/demo/run_prerecorded_fallback.py`
+- `scripts/demo/run_precomputed_replay.py`
 
 ## Quick commands
 
@@ -35,7 +35,7 @@ npm run test
 npm run typecheck
 
 # evaluator smoke path
-python scripts/evaluate_unsloth_asl.py --mock \
+python scripts/evaluation/evaluate_unsloth_asl.py --mock \
   --test-file data/processed/exports/asl_unsloth_pose_train_q64_full_top50_test.jsonl \
   --manifest data/processed/exports/asl_unsloth_pose_train_q64_full_top50_manifest.json \
   --out-dir evaluation/results/unsloth_asl_mock_smoke --max-samples 50

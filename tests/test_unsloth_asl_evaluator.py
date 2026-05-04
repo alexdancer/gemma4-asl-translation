@@ -30,8 +30,8 @@ from src.evaluation.unsloth_asl import (
     write_evaluation_artifacts,
     write_prompt_control_evaluation_artifacts,
 )
-from scripts.evaluate_unsloth_asl_constrained import main as constrained_cli_main
-from scripts.evaluate_unsloth_asl_prompt_control import main as prompt_control_cli_main
+from scripts.evaluation.evaluate_unsloth_asl_constrained import main as constrained_cli_main
+from scripts.evaluation.evaluate_unsloth_asl_prompt_control import main as prompt_control_cli_main
 
 
 def test_normalize_model_output_accepts_only_manifest_labels() -> None:

@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from scripts.run_constrained_top50_demo import main as run_constrained_top50_demo_main
+from scripts.demo.run_constrained_top50_demo import main as run_constrained_top50_demo_main
 from src.demo.constrained_top50 import ConstrainedTop50DemoConfig, run_constrained_top50_demo
 from src.evaluation.unsloth_asl import MockConstrainedGlossScorer
 

@@ -99,7 +99,7 @@ Expected project checkpoint destination pattern:
 ## Local evaluation command after checkpoint is frozen
 
 ```bash
-python scripts/evaluate_unsloth_asl.py \
+python scripts/evaluation/evaluate_unsloth_asl.py \
   --checkpoint checkpoints/unsloth_gemma-4-E4B-it_q64_full_top50_baseline \
   --test-file data/processed/exports/asl_unsloth_pose_train_q64_full_top50_test.jsonl \
   --manifest data/processed/exports/asl_unsloth_pose_train_q64_full_top50_manifest.json \

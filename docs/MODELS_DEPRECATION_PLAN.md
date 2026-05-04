@@ -5,14 +5,14 @@
 `src/models/*` is still active:
 
 - `gemma_finetune.py` used by:
-  - `scripts/test_finetuning.py`
-  - `scripts/phase2a_run.py`
+  - `scripts/legacy/test_finetuning.py`
+  - `scripts/legacy/phase2a_run.py`
   - `tests/test_gemma_finetune.py`
 - `gemma_loader.py` used by:
-  - `scripts/test_finetuning.py`
+  - `scripts/legacy/test_finetuning.py`
   - `src/mobile/cactus_export.py`
 - `tcn_baseline.py` used by:
-  - `scripts/run_prerecorded_fallback.py`
+  - `scripts/demo/run_prerecorded_fallback.py`
   - `tests/test_tcn_baseline.py`
 - `utils.py` used by:
   - `src/models/gemma_finetune.py`
@@ -31,7 +31,7 @@ Remove training-era model modules safely, while preserving current Top-50 evalua
 3. Keep backward-compatible wrappers in `src/models/gemma_loader.py` temporarily.
 
 Remaining `gemma_loader` dependency after this step:
-- `scripts/test_finetuning.py`
+- `scripts/legacy/test_finetuning.py`
 
 Gate:
 - `npm run test` ✅
@@ -42,8 +42,8 @@ Gate:
 If we are no longer running local fine-tuning in this repo:
 
 1. Mark these scripts as deprecated and remove from runbook/docs:
-   - `scripts/test_finetuning.py`
-   - `scripts/phase2a_run.py` (only if fully retired)
+   - `scripts/legacy/test_finetuning.py`
+   - `scripts/legacy/phase2a_run.py` (only if fully retired)
 2. Remove tests tied only to retired training path:
    - `tests/test_gemma_finetune.py`
 3. Remove `src/models/gemma_finetune.py` once no imports remain.

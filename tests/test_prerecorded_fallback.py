@@ -8,7 +8,7 @@ import numpy as np
 
 from src.demo.fallback_a import DemoInferenceRunConfig, run_demo_inference_once
 from src.data.live_capture import PrerecordedVideoSource
-from scripts.run_prerecorded_fallback import main as run_prerecorded_main
+from scripts.demo.run_prerecorded_fallback import main as run_prerecorded_main
 
 
 def _write_video(path: Path, frame_values: list[int]) -> None:

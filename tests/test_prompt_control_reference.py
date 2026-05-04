@@ -6,7 +6,7 @@ import json
 from pathlib import Path
 from typing import Any, Mapping
 
-from scripts.build_prompt_control_reference import main as build_prompt_control_reference_main
+from scripts.evaluation.build_prompt_control_reference import main as build_prompt_control_reference_main
 from src.demo.prompt_control_reference import (
     REFERENCE_MODE,
     REFERENCE_SCOPE,
