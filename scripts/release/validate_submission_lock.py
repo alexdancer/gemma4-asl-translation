@@ -46,7 +46,15 @@ def build_readiness(checklist: dict, *, today: date) -> tuple[dict, list[str]]:
     risks: list[str] = []
     gate_errors: list[str] = []
 
-    package_inputs = checklist.get("package_inputs", {})
+    package_inputs_raw = checklist.get("package_inputs", {})
+    if not isinstance(package_inputs_raw, dict):
+        errors.append(
+            f"package_inputs must be an object/dict, got {type(package_inputs_raw).__name__}"
+        )
+        package_inputs = {}
+    else:
+        package_inputs = package_inputs_raw
+
     missing_keys = [key for key in REQUIRED_INPUT_KEYS if key not in package_inputs]
     if missing_keys:
         errors.append(f"missing package input keys: {', '.join(missing_keys)}")
@@ -57,6 +65,11 @@ def build_readiness(checklist: dict, *, today: date) -> tuple[dict, list[str]]:
 
     for key in REQUIRED_INPUT_KEYS:
         entry = package_inputs.get(key, {})
+        if not isinstance(entry, dict):
+            errors.append(
+                f"package input {key} must be an object/dict, got {type(entry).__name__}"
+            )
+            continue
         status = entry.get("status")
         value = str(entry.get("value", "")).strip()
         if status not in ALLOWED_INPUT_STATUSES:
@@ -75,7 +88,13 @@ def build_readiness(checklist: dict, *, today: date) -> tuple[dict, list[str]]:
             pending_count += 1
             risks.append(f"{key} is pending: {entry.get('notes', 'no note provided')}")
 
-    gates = checklist.get("freeze_gates", {})
+    gates_raw = checklist.get("freeze_gates", {})
+    if not isinstance(gates_raw, dict):
+        errors.append(f"freeze_gates must be an object/dict, got {type(gates_raw).__name__}")
+        gates = {}
+    else:
+        gates = gates_raw
+
     gate_summary: dict[str, dict] = {}
 
     for gate_name in REQUIRED_FREEZE_GATES:
@@ -160,8 +179,22 @@ def main() -> int:
     args = parser.parse_args()
 
     checklist = _load_json(args.checklist)
-    today = _parse_date(str(checklist.get("as_of_date", date.today().isoformat())))
+
+    as_of_date_raw = checklist.get("as_of_date", date.today().isoformat())
+    as_of_date_error = None
+    try:
+        today = _parse_date(str(as_of_date_raw))
+    except Exception:  # noqa: BLE001
+        today = date.today()
+        as_of_date_error = f"invalid as_of_date: {as_of_date_raw!r}"
+
     readiness, errors = build_readiness(checklist, today=today)
+    if as_of_date_error:
+        readiness["validation_errors"] = [
+            as_of_date_error,
+            *readiness.get("validation_errors", []),
+        ]
+        errors = [as_of_date_error, *errors]
 
     args.out.parent.mkdir(parents=True, exist_ok=True)
     args.out.write_text(json.dumps(readiness, indent=2, sort_keys=True) + "\n", encoding="utf-8")

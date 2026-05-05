@@ -1,3 +1,8 @@
+import json
+import subprocess
+import sys
+from pathlib import Path
+
 from datetime import date
 
 from scripts.release.validate_submission_lock import build_readiness
@@ -75,3 +80,48 @@ def test_build_readiness_rejects_placeholder_demo_video_when_marked_ready() -> N
     readiness, errors = build_readiness(checklist, today=date(2026, 5, 5))
     assert any("demo_video is marked ready but value appears to be a placeholder" in error for error in errors)
     assert readiness["package"]["complete"] is False
+
+
+def test_build_readiness_rejects_non_dict_package_inputs() -> None:
+    checklist = _base_checklist()
+    checklist["package_inputs"] = []
+    readiness, errors = build_readiness(checklist, today=date(2026, 5, 5))
+    assert any("package_inputs must be an object/dict" in error for error in errors)
+    assert readiness["package"]["complete"] is False
+
+
+def test_build_readiness_rejects_non_dict_freeze_gates() -> None:
+    checklist = _base_checklist()
+    checklist["freeze_gates"] = []
+    readiness, errors = build_readiness(checklist, today=date(2026, 5, 5))
+    assert any("freeze_gates must be an object/dict" in error for error in errors)
+    assert readiness["freeze_gates_satisfied"] is False
+
+
+def test_cli_invalid_as_of_date_returns_validation_error(tmp_path) -> None:
+    checklist_path = tmp_path / "bad_as_of_date_checklist.json"
+    out_path = tmp_path / "artifact.json"
+
+    checklist = _base_checklist()
+    checklist["as_of_date"] = "2026-13-99"
+    checklist_path.write_text(json.dumps(checklist), encoding="utf-8")
+
+    repo_root = Path(__file__).resolve().parents[2]
+    result = subprocess.run(
+        [
+            sys.executable,
+            "scripts/release/validate_submission_lock.py",
+            "--checklist",
+            str(checklist_path),
+            "--out",
+            str(out_path),
+        ],
+        cwd=repo_root,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert result.returncode == 1
+    assert "invalid as_of_date" in result.stdout
+    assert "Traceback" not in result.stderr
