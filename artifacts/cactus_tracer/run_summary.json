@@ -1,0 +1,18 @@
+{
+  "acceptance_proof_satisfied": false,
+  "captured_at": "2026-05-05T21:40:07+00:00",
+  "completion_artifact_path": "artifacts/cactus_tracer/local_completion_v1.json",
+  "completion_status": {
+    "error": "ModuleNotFoundError: No module named 'src.cactus'",
+    "runtime_mode": "deterministic_fallback",
+    "success": false
+  },
+  "conversion_status": {
+    "error": "Real export disabled via configuration.",
+    "mode": "deterministic_fallback",
+    "success": false
+  },
+  "converted_weights_dir": "artifacts/cactus_tracer/converted_weights/v1",
+  "freeze_metadata_path": "artifacts/cactus_tracer/frozen_baseline_metadata.json",
+  "scope": "cactus_tracer_slice"
+}
