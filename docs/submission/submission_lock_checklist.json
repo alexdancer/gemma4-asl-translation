@@ -1,0 +1,75 @@
+{
+  "schema_version": "1.0",
+  "issue": 44,
+  "as_of_date": "2026-05-05",
+  "timezone": "America/Chicago",
+  "deadlines": {
+    "feature_freeze": "2026-05-12",
+    "demo_writeup_freeze": "2026-05-15",
+    "hackathon_deadline": "2026-05-18T18:59:00-05:00"
+  },
+  "package_inputs": {
+    "demo_video": {
+      "status": "pending",
+      "value": "https://github.com/alexdancer/sign-language-asl/issues/44#issuecomment-placeholder-demo-video",
+      "notes": "Placeholder link tracked; replace with final hosted demo URL before submission."
+    },
+    "project_repository": {
+      "status": "ready",
+      "value": "https://github.com/alexdancer/sign-language-asl",
+      "notes": "Canonical source link."
+    },
+    "reproducibility_bundle": {
+      "status": "blocked",
+      "value": "https://github.com/alexdancer/sign-language-asl/issues/41",
+      "notes": "Blocked by issue #41."
+    },
+    "promotion_gate_report": {
+      "status": "blocked",
+      "value": "https://github.com/alexdancer/sign-language-asl/issues/43",
+      "notes": "Blocked by issue #43."
+    },
+    "demo_failover_artifact": {
+      "status": "ready",
+      "value": "evaluation/results/prompt_control_reference/reference.json",
+      "notes": "Stable reference artifact for demo-safe fallback path."
+    },
+    "metrics_dashboard_artifact": {
+      "status": "ready",
+      "value": "evaluation/results/unsloth_top50_q64_full_dashboard_baseline_prompt_control/report.md",
+      "notes": "Prompt-control baseline report used in write-up."
+    },
+    "writeup_problem_constraints": {
+      "status": "ready",
+      "value": "docs/PRD_CACTUS_IOS_PHASE1_AND_100_GLOSS_EXPANSION.md",
+      "notes": "Submission narrative source: problem and constraints."
+    },
+    "writeup_routing_fallback": {
+      "status": "ready",
+      "value": "docs/PRD_CACTUS_IOS_PHASE1_AND_100_GLOSS_EXPANSION.md",
+      "notes": "Submission narrative source: local-first routing and fallback behavior."
+    }
+  },
+  "freeze_gates": {
+    "feature_freeze": {
+      "date": "2026-05-12",
+      "status": "scheduled",
+      "owner": "alexdancer",
+      "criteria": [
+        "No new feature merges after freeze date",
+        "Only blocker-level bug fixes permitted",
+        "Baseline checkpoint and prompt-control behavior remain stable"
+      ]
+    },
+    "demo_writeup_freeze": {
+      "date": "2026-05-15",
+      "status": "scheduled",
+      "owner": "alexdancer",
+      "criteria": [
+        "Demo script and fallback flow locked",
+        "Video and required links finalized",
+        "Write-up narrative and metrics snapshot locked"
+      ]
+    }
+  }
+}

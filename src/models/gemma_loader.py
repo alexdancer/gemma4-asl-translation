@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import logging
-from typing import Optional, Tuple
+from typing import Tuple
 
 import torch
 from transformers import AutoTokenizer
@@ -157,7 +157,6 @@ def load_checkpoint(
         >>> model, tokenizer = load_checkpoint("models/checkpoints/epoch-1")
     """
 
-    from peft import PeftModel
     from transformers import AutoModelForCausalLM
 
     try:
@@ -171,9 +170,3 @@ def load_checkpoint(
         raise
 
 
-if __name__ == "__main__":
-    # Quick test of loading
-    logging.basicConfig(level=logging.INFO)
-    model, tokenizer = load_gemma_4_2b_e2b(lora_rank=16)
-    print(f"Model loaded: {model}")
-    print(f"Tokenizer vocab size: {len(tokenizer)}")

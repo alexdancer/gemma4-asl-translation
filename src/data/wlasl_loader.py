@@ -96,8 +96,13 @@ def load_wlasl_metadata(metadata_path: Path, video_dir: Optional[Path] = None) -
             sample_id = f"{gloss}_{video_id}"
             local_path = None
             if video_dir is not None:
-                candidate = Path(video_dir) / f"{video_id}.mp4"
-                local_path = str(candidate) if candidate.exists() else None
+                root = Path(video_dir)
+                candidates = [
+                    root / f"{video_id}.mp4",
+                    root / str(gloss) / f"{video_id}.mp4",
+                ]
+                existing = next((path for path in candidates if path.exists()), None)
+                local_path = str(existing) if existing is not None else None
 
             records.append(
                 {

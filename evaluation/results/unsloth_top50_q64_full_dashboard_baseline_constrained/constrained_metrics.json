@@ -1,0 +1,8 @@
+{
+  "sample_count": 50,
+  "constrained_top1_accuracy": 0.7,
+  "correct": 35,
+  "class_count": 50,
+  "mode": "real",
+  "top_score_count": 10
+}

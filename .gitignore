@@ -7,7 +7,7 @@ __pycache__/
 htmlcov/
 
 # Environments
-.venv/
+.venv311/
 venv/
 env/
 
@@ -26,6 +26,8 @@ Thumbs.db
 .idea/
 .vscode/
 .codex
+.agents/
+sign-language-asl/
 
 # Unsloth
 unsloth_compiled_cache/
@@ -35,6 +37,10 @@ cactus_export/
 
 # Checkpoints
 checkpoints/
+
+# Ephemeral evaluation/demo outputs
+evaluation/results/*_smoke/
+evaluation/results/prerecorded_q64_demo/
 
 issues/
 ralph/
