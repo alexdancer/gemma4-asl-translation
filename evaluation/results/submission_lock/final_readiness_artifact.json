@@ -17,14 +17,15 @@
   "freeze_gates_satisfied": true,
   "issue": 44,
   "open_risks": [
+    "demo_video is pending: Placeholder link tracked; replace with final hosted demo URL before submission.",
     "reproducibility_bundle is blocked: Blocked by issue #41.",
     "promotion_gate_report is blocked: Blocked by issue #43."
   ],
   "package": {
     "blocked": 2,
-    "complete": true,
-    "pending": 0,
-    "ready": 6,
+    "complete": false,
+    "pending": 1,
+    "ready": 5,
     "required_inputs": 8
   },
   "schema_version": "1.0",

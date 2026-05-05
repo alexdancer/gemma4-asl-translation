@@ -6,7 +6,7 @@ This document locks the required final submission inputs as first-class delivera
 
 | Input | Status | Value | Notes |
 | --- | --- | --- | --- |
-| Demo video | ready | https://github.com/alexdancer/sign-language-asl/issues/44#issuecomment-placeholder-demo-video | Final video URL placeholder; replace with hosted demo link before final submit. |
+| Demo video | pending | https://github.com/alexdancer/sign-language-asl/issues/44#issuecomment-placeholder-demo-video | Placeholder tracked; replace with hosted demo link before final submit. |
 | Project repository | ready | https://github.com/alexdancer/sign-language-asl | Canonical source code link. |
 | Reproducibility bundle (Issue #41) | blocked | https://github.com/alexdancer/sign-language-asl/issues/41 | Blocked until issue #41 artifacts are published. |
 | 100-gloss promotion-gate report (Issue #43) | blocked | https://github.com/alexdancer/sign-language-asl/issues/43 | Blocked until issue #43 report artifacts are published. |

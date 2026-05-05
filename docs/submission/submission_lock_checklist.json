@@ -10,9 +10,9 @@
   },
   "package_inputs": {
     "demo_video": {
-      "status": "ready",
+      "status": "pending",
       "value": "https://github.com/alexdancer/sign-language-asl/issues/44#issuecomment-placeholder-demo-video",
-      "notes": "Replace with final hosted demo URL before submission."
+      "notes": "Placeholder link tracked; replace with final hosted demo URL before submission."
     },
     "project_repository": {
       "status": "ready",

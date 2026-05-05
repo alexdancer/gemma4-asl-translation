@@ -29,6 +29,7 @@ def test_build_readiness_allows_scheduled_future_freezes() -> None:
     assert errors == []
     assert readiness["freeze_gates_satisfied"] is True
     assert readiness["package"]["blocked"] == 2
+    assert readiness["package"]["complete"] is False
 
 
 def test_build_readiness_flags_due_freeze_without_pass() -> None:
@@ -47,4 +48,30 @@ def test_build_readiness_fails_missing_required_inputs() -> None:
     readiness, errors = build_readiness(checklist, today=date(2026, 5, 5))
     assert errors
     assert any("missing package input keys" in error for error in errors)
+    assert readiness["package"]["complete"] is False
+
+
+def test_build_readiness_fails_when_required_freeze_gate_missing() -> None:
+    checklist = _base_checklist()
+    del checklist["freeze_gates"]["demo_writeup_freeze"]
+    readiness, errors = build_readiness(checklist, today=date(2026, 5, 5))
+    assert any("missing freeze gate: demo_writeup_freeze" in error for error in errors)
+    assert readiness["freeze_gates_satisfied"] is False
+
+
+def test_build_readiness_fails_when_required_freeze_gate_date_invalid() -> None:
+    checklist = _base_checklist()
+    checklist["freeze_gates"]["feature_freeze"]["date"] = "2026-13-99"
+    readiness, errors = build_readiness(checklist, today=date(2026, 5, 5))
+    assert any("invalid gate date for feature_freeze" in error for error in errors)
+    assert readiness["freeze_gates_satisfied"] is False
+
+
+def test_build_readiness_rejects_placeholder_demo_video_when_marked_ready() -> None:
+    checklist = _base_checklist()
+    checklist["package_inputs"]["demo_video"]["value"] = (
+        "https://github.com/alexdancer/sign-language-asl/issues/44#issuecomment-placeholder-demo-video"
+    )
+    readiness, errors = build_readiness(checklist, today=date(2026, 5, 5))
+    assert any("demo_video is marked ready but value appears to be a placeholder" in error for error in errors)
     assert readiness["package"]["complete"] is False

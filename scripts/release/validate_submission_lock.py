@@ -19,6 +19,11 @@ REQUIRED_INPUT_KEYS = (
     "writeup_routing_fallback",
 )
 
+REQUIRED_FREEZE_GATES = (
+    "feature_freeze",
+    "demo_writeup_freeze",
+)
+
 ALLOWED_INPUT_STATUSES = {"ready", "blocked", "pending"}
 ALLOWED_GATE_STATUSES = {"scheduled", "pass", "fail"}
 
@@ -31,9 +36,15 @@ def _parse_date(value: str) -> date:
     return date.fromisoformat(value)
 
 
+def _is_placeholder_demo_video(value: str) -> bool:
+    normalized = value.strip().lower()
+    return "placeholder" in normalized
+
+
 def build_readiness(checklist: dict, *, today: date) -> tuple[dict, list[str]]:
     errors: list[str] = []
     risks: list[str] = []
+    gate_errors: list[str] = []
 
     package_inputs = checklist.get("package_inputs", {})
     missing_keys = [key for key in REQUIRED_INPUT_KEYS if key not in package_inputs]
@@ -53,6 +64,8 @@ def build_readiness(checklist: dict, *, today: date) -> tuple[dict, list[str]]:
             continue
         if not value:
             errors.append(f"empty value for {key}")
+        if key == "demo_video" and status == "ready" and _is_placeholder_demo_video(value):
+            errors.append("demo_video is marked ready but value appears to be a placeholder")
         if status == "ready":
             ready_count += 1
         elif status == "blocked":
@@ -65,21 +78,27 @@ def build_readiness(checklist: dict, *, today: date) -> tuple[dict, list[str]]:
     gates = checklist.get("freeze_gates", {})
     gate_summary: dict[str, dict] = {}
 
-    for gate_name in ("feature_freeze", "demo_writeup_freeze"):
+    for gate_name in REQUIRED_FREEZE_GATES:
         gate = gates.get(gate_name)
         if not isinstance(gate, dict):
-            errors.append(f"missing freeze gate: {gate_name}")
+            message = f"missing freeze gate: {gate_name}"
+            errors.append(message)
+            gate_errors.append(message)
             continue
 
         status = gate.get("status")
         gate_date_raw = gate.get("date")
         if status not in ALLOWED_GATE_STATUSES:
-            errors.append(f"invalid gate status for {gate_name}: {status!r}")
+            message = f"invalid gate status for {gate_name}: {status!r}"
+            errors.append(message)
+            gate_errors.append(message)
             continue
         try:
             gate_date = _parse_date(gate_date_raw)
         except Exception:  # noqa: BLE001
-            errors.append(f"invalid gate date for {gate_name}: {gate_date_raw!r}")
+            message = f"invalid gate date for {gate_name}: {gate_date_raw!r}"
+            errors.append(message)
+            gate_errors.append(message)
             continue
 
         due = today >= gate_date
@@ -97,8 +116,13 @@ def build_readiness(checklist: dict, *, today: date) -> tuple[dict, list[str]]:
             "satisfied": satisfied,
         }
 
-    package_complete = len(missing_keys) == 0 and not errors
-    freeze_gates_satisfied = all(g.get("satisfied") for g in gate_summary.values()) if gate_summary else False
+    package_complete = len(missing_keys) == 0 and blocked_count == 0 and pending_count == 0 and not errors
+    all_required_gates_present = set(gate_summary.keys()) == set(REQUIRED_FREEZE_GATES)
+    freeze_gates_satisfied = (
+        all_required_gates_present
+        and not gate_errors
+        and all(g.get("satisfied") for g in gate_summary.values())
+    )
 
     readiness = {
         "schema_version": "1.0",
