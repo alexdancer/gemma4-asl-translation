@@ -46,6 +46,9 @@ python scripts/data/verify_cached_pose_q64.py \
   --pose-path path/to/hearing_26986.npz \
   --sample-id hearing_26986 \
   --expected-gloss hearing
+
+# submission lock checklist validator
+./venv/bin/python scripts/release/validate_submission_lock.py
 ```
 
 The verifier uses the matching record in `--records` as the q64 shape contract;
@@ -58,6 +61,9 @@ fail before writing evaluation metrics or readiness artifacts.
 - `docs/PRERECORDED_Q64_DEMO.md` — demo-scope and known-good path
 - `docs/ISSUE_30_CACTUS_PROMPT_CONTROL_PARITY_PLAN.md` — active Cactus parity implementation plan
 - `docs/VALIDATION_PIPELINE_CODE_GUIDE.md` — guide to the current staged validation pipeline
+- `docs/submission/submission_package_inputs.md` — required demo video, links, and write-up input tracker
+- `docs/submission/freeze_checklist.md` — feature/demo-writeup freeze enforcement checklist
+- `evaluation/results/submission_lock/final_readiness_artifact.json` — machine-readable package completeness + open risks
 - `docs/archive/training-proof-era/` — older training/proof-era PRDs and runbooks kept for reference
 
 ## Scope guardrails
