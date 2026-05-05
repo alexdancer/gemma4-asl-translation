@@ -4,6 +4,18 @@
 
 Issue #30 should build the **parity harness and report contract now**, with Cactus runtime execution behind a real-run seam. We do **not** currently have a Cactus-converted weights folder, so CI/dev tests must use mocked Cactus outputs and must not claim real Cactus parity.
 
+The purpose is not to re-measure whether the model learned ASL. The Python/Unsloth evaluation path already answers that. The purpose is to check whether a Cactus-converted/runtime version preserves the validated Python prompt-control behavior on the same q64 inputs.
+
+Mental model:
+
+```text
+Python eval       = did the model learn?
+Video/q64 smoke   = can real inputs become valid q64?
+Cactus parity     = did the Cactus runtime preserve Python behavior?
+```
+
+If we later upload/convert the current fine-tuned Gemma model to Cactus, this harness compares Cactus normalized output against the Python reference fixture. It answers runtime-boundary questions like prompt/tokenizer/export/decoding drift, not full test-set accuracy unless we expand it to more samples.
+
 ## Cactus docs grounding
 
 - Use **Cactus Engine / Python SDK** for prompt-control text generation, not Cactus Graph. Graph is lower-level tensor compute; this issue compares LLM completion behavior.

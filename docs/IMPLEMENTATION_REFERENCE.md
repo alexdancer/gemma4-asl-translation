@@ -22,6 +22,7 @@ This document is the current code map for the Top-50 proof/evaluation/demo flow.
   - prompt-control free-generation fixture selector for stable smoke/demo samples
 - `src/mobile/cactus_prompt_control_parity.py`
   - Cactus Engine prompt-control parity harness/report contract with a mockable runner seam and honest real-run failure reporting
+  - checks whether a Cactus-converted/runtime model preserves the validated Python prompt-control normalized-gloss behavior; it is not a replacement for Python accuracy evaluation
 - `src/data/cached_pose_q64.py`
   - cached/precomputed pose archive to q64 JSONL compatibility verifier
   - writes dedicated verification artifacts outside evaluation metrics and demo readiness outputs

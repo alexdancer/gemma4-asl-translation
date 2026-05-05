@@ -16,6 +16,17 @@ cached/precomputed pose
 
 The goal is to isolate failures. If something breaks, we can tell whether the problem is q64 formatting, video/MediaPipe extraction, Python model inference, Cactus runtime behavior, or output normalization.
 
+Think of the stages as answering different engineering questions:
+
+```text
+Python eval       = did the model learn the q64 task?
+Video/q64 smoke   = can real/prerecorded video become valid q64 input?
+Python video smoke = can video-derived q64 run through the validated Python path?
+Cactus parity     = does Cactus reproduce the validated Python behavior?
+```
+
+The Cactus parity harness is therefore not primarily an accuracy benchmark. It is a runtime-boundary regression test. Once the fine-tuned Gemma model is converted/uploaded to Cactus, the harness checks whether Cactus preserves the same normalized gloss behavior as the Python reference on the same q64 samples.
+
 ## Key contract
 
 All stages preserve the same q64 prompt-control shape:
@@ -232,6 +243,8 @@ PYTHONPATH=. ./venv/bin/python scripts/demo/run_python_video_prompt_control_smok
 ### What it does
 
 This harness compares Cactus completion behavior against Python prompt-control reference behavior.
+
+Why it exists: Python success does not guarantee Cactus success. Cactus introduces a runtime boundary with possible prompt formatting, tokenizer, adapter/export, decoding, output parsing, and local-vs-cloud execution drift. The harness makes that boundary observable before we claim mobile/runtime parity.
 
 It starts with the prompt-control reference fixture from issue #26 and runs selected q64 samples through a Cactus runner seam:
 
