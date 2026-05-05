@@ -54,10 +54,11 @@ fail before writing evaluation metrics or readiness artifacts.
 
 ## Docs
 
-- `docs/PRD_UNSLOTH_TOP50_PROOF_AND_DEMO.md` — product/decision context
-- `docs/QUICK_START_FINETUNING.md` — current runbook commands
 - `docs/IMPLEMENTATION_REFERENCE.md` — current module map
 - `docs/PRERECORDED_Q64_DEMO.md` — demo-scope and known-good path
+- `docs/ISSUE_30_CACTUS_PROMPT_CONTROL_PARITY_PLAN.md` — active Cactus parity implementation plan
+- `docs/VALIDATION_PIPELINE_CODE_GUIDE.md` — guide to the current staged validation pipeline
+- `docs/archive/training-proof-era/` — older training/proof-era PRDs and runbooks kept for reference
 
 ## Scope guardrails
 
