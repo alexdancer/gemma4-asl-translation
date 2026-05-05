@@ -1,17 +1,18 @@
 {
-  "captured_at": "2026-05-05T20:29:08+00:00",
-  "completion_artifact_path": "/home/alex-server/Documents/ASL-Hackathon/sign-language-asl-issue-32/artifacts/cactus_tracer/local_completion_v1.json",
+  "acceptance_proof_satisfied": false,
+  "captured_at": "2026-05-05T21:40:07+00:00",
+  "completion_artifact_path": "artifacts/cactus_tracer/local_completion_v1.json",
   "completion_status": {
-    "error": null,
+    "error": "ModuleNotFoundError: No module named 'src.cactus'",
     "runtime_mode": "deterministic_fallback",
-    "success": true
+    "success": false
   },
   "conversion_status": {
     "error": "Real export disabled via configuration.",
     "mode": "deterministic_fallback",
     "success": false
   },
-  "converted_weights_dir": "/home/alex-server/Documents/ASL-Hackathon/sign-language-asl-issue-32/artifacts/cactus_tracer/converted_weights/v1",
-  "freeze_metadata_path": "/home/alex-server/Documents/ASL-Hackathon/sign-language-asl-issue-32/artifacts/cactus_tracer/frozen_baseline_metadata.json",
+  "converted_weights_dir": "artifacts/cactus_tracer/converted_weights/v1",
+  "freeze_metadata_path": "artifacts/cactus_tracer/frozen_baseline_metadata.json",
   "scope": "cactus_tracer_slice"
 }

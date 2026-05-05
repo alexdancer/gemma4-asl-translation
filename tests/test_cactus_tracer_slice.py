@@ -37,24 +37,45 @@ def test_run_cactus_tracer_slice_writes_required_artifacts_with_fallback(tmp_pat
     assert (converted_dir / "conversion_manifest.json").exists()
 
     completion_payload = json.loads(Path(result.completion_artifact_path).read_text(encoding="utf-8"))
-    assert completion_payload["success"] is True
     assert completion_payload["runtime_mode"] == "deterministic_fallback"
+    assert completion_payload["success"] is False
     assert isinstance(completion_payload["response"], str)
-    assert completion_payload["error"] is None
+    assert isinstance(completion_payload["error"], str)
     assert completion_payload["timing_ms"] >= 0
 
+    summary_payload = json.loads(Path(result.summary_path).read_text(encoding="utf-8"))
+    assert summary_payload["acceptance_proof_satisfied"] is False
+    assert result.acceptance_proof_satisfied is False
 
-def test_local_completion_artifact_keeps_success_error_fields(tmp_path: Path) -> None:
+
+def test_local_completion_fallback_reports_failure_for_acceptance(tmp_path: Path) -> None:
     artifact_path = tmp_path / "completion.json"
     payload = run_local_completion(
         weights_dir=tmp_path / "weights",
         prompt="Classify this sample.",
         artifact_path=artifact_path,
-        prefer_cactus_engine=False,
+        repo_root=tmp_path,
+        prefer_cactus_engine=True,
     )
 
     saved = json.loads(artifact_path.read_text(encoding="utf-8"))
     assert saved == payload
-    assert {"success", "error", "response", "timing_ms"}.issubset(saved)
-    assert saved["success"] is True
-    assert saved["error"] is None
+    assert {"success", "error", "response", "timing_ms", "runtime_mode"}.issubset(saved)
+    assert saved["runtime_mode"] == "deterministic_fallback"
+    assert saved["success"] is False
+    assert isinstance(saved["error"], str)
+
+
+def test_local_completion_without_cactus_attempt_is_not_success(tmp_path: Path) -> None:
+    artifact_path = tmp_path / "completion.json"
+    payload = run_local_completion(
+        weights_dir=tmp_path / "weights",
+        prompt="Classify this sample.",
+        artifact_path=artifact_path,
+        repo_root=tmp_path,
+        prefer_cactus_engine=False,
+    )
+
+    assert payload["success"] is False
+    assert payload["runtime_mode"] == "deterministic_fallback"
+    assert payload["error"] == "Cactus engine not attempted."

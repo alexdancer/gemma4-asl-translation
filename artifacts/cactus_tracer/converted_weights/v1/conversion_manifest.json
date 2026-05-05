@@ -1,6 +1,6 @@
 {
-  "captured_at": "2026-05-05T20:29:08+00:00",
-  "checkpoint_path": "/home/alex-server/Documents/ASL-Hackathon/sign-language-asl/checkpoints/unsloth_gemma-4-E4B-it_q64_full_top50_baseline",
+  "captured_at": "2026-05-05T21:40:07+00:00",
+  "checkpoint_path": "checkpoints/unsloth_gemma-4-E4B-it_q64_full_top50_baseline",
   "conversion_mode": "deterministic_fallback",
   "conversion_output_version": "v1",
   "error": "Real export disabled via configuration.",

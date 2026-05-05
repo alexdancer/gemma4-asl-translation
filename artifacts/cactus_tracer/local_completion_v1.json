@@ -1,12 +1,12 @@
 {
-  "captured_at": "2026-05-05T20:29:08+00:00",
-  "error": null,
+  "captured_at": "2026-05-05T21:40:07+00:00",
+  "error": "ModuleNotFoundError: No module named 'src.cactus'",
   "prompt": "You are an ASL gloss classifier. Return exactly one uppercase gloss label and no extra text.",
   "response": "HELLO",
   "runtime_mode": "deterministic_fallback",
   "runtime_warning": "Fell back to deterministic tracer completion: ModuleNotFoundError: No module named 'src.cactus'",
   "scope": "cactus_tracer_slice",
-  "success": true,
-  "timing_ms": 0.061,
-  "weights_dir": "/home/alex-server/Documents/ASL-Hackathon/sign-language-asl-issue-32/artifacts/cactus_tracer/converted_weights/v1"
+  "success": false,
+  "timing_ms": 0.041,
+  "weights_dir": "artifacts/cactus_tracer/converted_weights/v1"
 }

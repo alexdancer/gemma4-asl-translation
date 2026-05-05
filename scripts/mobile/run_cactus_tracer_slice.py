@@ -41,7 +41,7 @@ def main() -> int:
     )
     result = run_cactus_tracer_slice(config)
     print(json.dumps(result_to_dict(result), indent=2, sort_keys=True))
-    return 0
+    return 0 if result.acceptance_proof_satisfied else 1
 
 
 if __name__ == "__main__":

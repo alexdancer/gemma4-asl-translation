@@ -16,4 +16,6 @@ This folder contains one local end-to-end tracer run for the frozen baseline che
 
 ## Runtime mode notes
 
-If Cactus runtime bindings are unavailable, the tracer emits a deterministic fallback completion (`runtime_mode: deterministic_fallback`) while still preserving the required artifact contract.
+If Cactus runtime bindings are unavailable, the tracer emits a deterministic fallback completion (`runtime_mode: deterministic_fallback`) for debugging.
+
+Important: fallback runs are intentionally marked as unsuccessful proof (`success: false`) and `acceptance_proof_satisfied: false` in `run_summary.json`.
