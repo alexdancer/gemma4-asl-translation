@@ -1,8 +1,8 @@
 {
-  "captured_at": "2026-05-05T21:40:07+00:00",
+  "captured_at": "2026-05-05T21:46:42+00:00",
   "checkpoint_id": "unsloth_gemma-4-E4B-it_q64_full_top50_baseline",
   "checkpoint_path": "checkpoints/unsloth_gemma-4-E4B-it_q64_full_top50_baseline",
   "conversion_output_version": "v1",
-  "git_sha": "581c3ec355ce31734f14b655da9caa69587d47f6",
+  "git_sha": "4334cddd79a63f248f152992abc2518beb8077de",
   "scope": "cactus_tracer_slice"
 }

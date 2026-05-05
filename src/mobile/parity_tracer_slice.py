@@ -59,6 +59,13 @@ class ParityTracerSliceResult:
     payload: dict[str, Any]
 
 
+@dataclass(frozen=True)
+class RunnerOutcome:
+    raw_model_output: str
+    runtime_metadata: dict[str, Any]
+    runtime_error: str | None
+
+
 class MockParityPromptRunner:
     runtime_mode = "mock"
 
@@ -144,10 +151,8 @@ def run_parity_tracer_slice(
         expected_gloss = str(reference_record["expected_gloss"])
         runtime_errors: list[str] = []
 
-        python_raw = ""
-        python_metadata: dict[str, Any] = {}
-        cactus_raw = ""
-        cactus_metadata: dict[str, Any] = {}
+        python_outcome = RunnerOutcome(raw_model_output="", runtime_metadata={}, runtime_error=None)
+        cactus_outcome = RunnerOutcome(raw_model_output="", runtime_metadata={}, runtime_error=None)
 
         try:
             q64_record = records_by_sample_id.get(sample_id)
@@ -159,25 +164,25 @@ def run_parity_tracer_slice(
             runtime_errors.append(_normalize_runtime_error(str(exc), prefix="prompt:"))
 
         if prompt is not None:
-            python_raw, python_metadata, python_error = _run_runner(
+            python_outcome = _run_runner(
                 python_runner,
                 prompt,
                 sample_id=sample_id,
                 runtime_subject="Python",
             )
-            cactus_raw, cactus_metadata, cactus_error = _run_runner(
+            cactus_outcome = _run_runner(
                 cactus_runner,
                 prompt,
                 sample_id=sample_id,
                 runtime_subject="Cactus",
             )
-            if python_error is not None:
-                runtime_errors.append(python_error)
-            if cactus_error is not None:
-                runtime_errors.append(cactus_error)
+            if python_outcome.runtime_error is not None:
+                runtime_errors.append(python_outcome.runtime_error)
+            if cactus_outcome.runtime_error is not None:
+                runtime_errors.append(cactus_outcome.runtime_error)
 
-        python_gloss, python_valid = normalize_model_output(python_raw, labels)
-        cactus_gloss, cactus_valid = normalize_model_output(cactus_raw, labels)
+        python_gloss, python_valid = normalize_model_output(python_outcome.raw_model_output, labels)
+        cactus_gloss, cactus_valid = normalize_model_output(cactus_outcome.raw_model_output, labels)
 
         normalized_gloss_match = python_gloss == cactus_gloss
         valid_label_match = python_valid == cactus_valid
@@ -198,12 +203,12 @@ def run_parity_tracer_slice(
                 "selection_role": str(reference_record.get("selection_role", "unknown")),
                 "expected_gloss": expected_gloss,
                 "python": {
-                    "raw_model_output": python_raw,
+                    "raw_model_output": python_outcome.raw_model_output,
                     "normalized_gloss": python_gloss,
                     "valid_label": python_valid,
                 },
                 "cactus": {
-                    "raw_model_output": cactus_raw,
+                    "raw_model_output": cactus_outcome.raw_model_output,
                     "normalized_gloss": cactus_gloss,
                     "valid_label": cactus_valid,
                 },
@@ -216,11 +221,11 @@ def run_parity_tracer_slice(
                 "runtime": {
                     "python": {
                         "runtime_mode": python_runner.runtime_mode,
-                        "runtime_metadata": python_metadata,
+                        "runtime_metadata": python_outcome.runtime_metadata,
                     },
                     "cactus": {
                         "runtime_mode": cactus_runner.runtime_mode,
-                        "runtime_metadata": cactus_metadata,
+                        "runtime_metadata": cactus_outcome.runtime_metadata,
                     },
                 },
             }
@@ -253,16 +258,24 @@ def _run_runner(
     *,
     sample_id: str,
     runtime_subject: str,
-) -> tuple[str, dict[str, Any], str | None]:
+) -> RunnerOutcome:
     try:
         completion = runner.complete(prompt, sample_id=sample_id)
         metadata = completion.runtime_metadata or {}
         error = None
         if not completion.success:
             error = completion.error or f"runtime: {runtime_subject} completion returned success=false"
-        return completion.raw_model_output, metadata, _normalize_runtime_error(error) if error else None
+        return RunnerOutcome(
+            raw_model_output=completion.raw_model_output,
+            runtime_metadata=metadata,
+            runtime_error=_normalize_runtime_error(error) if error else None,
+        )
     except Exception as exc:
-        return "", {}, _normalize_runtime_error(str(exc), prefix="runtime:")
+        return RunnerOutcome(
+            raw_model_output="",
+            runtime_metadata={},
+            runtime_error=_normalize_runtime_error(str(exc), prefix="runtime:"),
+        )
 
 
 def _normalize_runtime_error(error: str, *, prefix: str = "runtime:") -> str:
