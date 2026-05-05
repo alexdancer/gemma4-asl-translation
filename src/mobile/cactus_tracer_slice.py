@@ -10,6 +10,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+TRACER_SCOPE = "cactus_tracer_slice"
+
 
 def _utc_now() -> str:
     return datetime.now(timezone.utc).replace(microsecond=0).isoformat()
@@ -27,6 +29,14 @@ def _to_repo_relative(path: Path, repo_root: Path) -> str:
         return str(resolved_path.relative_to(resolved_root))
     except ValueError:
         return str(resolved_path)
+
+
+def _error_string(exc: Exception) -> str:
+    return f"{type(exc).__name__}: {exc}"
+
+
+def _conversion_status(*, mode: str, success: bool, error: str | None) -> dict[str, Any]:
+    return {"mode": mode, "success": success, "error": error}
 
 
 def resolve_git_sha(repo_root: Path) -> str:
@@ -66,7 +76,7 @@ def write_frozen_baseline_metadata(config: TracerSliceConfig) -> Path:
     output = config.output_root / "frozen_baseline_metadata.json"
     git_sha = config.git_sha or resolve_git_sha(config.repo_root)
     payload = {
-        "scope": "cactus_tracer_slice",
+        "scope": TRACER_SCOPE,
         "checkpoint_id": checkpoint.name,
         "checkpoint_path": _to_repo_relative(checkpoint, config.repo_root),
         "git_sha": git_sha,
@@ -85,7 +95,7 @@ def _write_conversion_fallback_manifest(
     repo_root: Path,
 ) -> None:
     payload = {
-        "scope": "cactus_tracer_slice",
+        "scope": TRACER_SCOPE,
         "conversion_output_version": conversion_output_version,
         "checkpoint_path": _to_repo_relative(checkpoint_path, repo_root),
         "conversion_mode": "deterministic_fallback",
@@ -111,11 +121,11 @@ def produce_cactus_weights_v1(config: TracerSliceConfig) -> tuple[Path, dict[str
             error="Real export disabled via configuration.",
             repo_root=config.repo_root,
         )
-        return weights_dir, {
-            "mode": "deterministic_fallback",
-            "success": False,
-            "error": "Real export disabled via configuration.",
-        }
+        return weights_dir, _conversion_status(
+            mode="deterministic_fallback",
+            success=False,
+            error="Real export disabled via configuration.",
+        )
 
     try:
         from src.mobile.cactus_export import CactusModelExporter
@@ -123,7 +133,7 @@ def produce_cactus_weights_v1(config: TracerSliceConfig) -> tuple[Path, dict[str
         exporter = CactusModelExporter(output_dir=weights_dir, model_version=version)
         export_result = exporter.export(checkpoint_path=checkpoint)
         manifest_payload = {
-            "scope": "cactus_tracer_slice",
+            "scope": TRACER_SCOPE,
             "conversion_output_version": version,
             "checkpoint_path": _to_repo_relative(checkpoint, config.repo_root),
             "conversion_mode": "real_export",
@@ -133,24 +143,24 @@ def produce_cactus_weights_v1(config: TracerSliceConfig) -> tuple[Path, dict[str
             "captured_at": _utc_now(),
         }
         _write_json(weights_dir / "conversion_manifest.json", manifest_payload)
-        return weights_dir, {
-            "mode": "real_export",
-            "success": manifest_payload["success"],
-            "error": None,
-        }
+        return weights_dir, _conversion_status(
+            mode="real_export",
+            success=manifest_payload["success"],
+            error=None,
+        )
     except Exception as exc:  # pragma: no cover - exercised in integration environments
         _write_conversion_fallback_manifest(
             weights_dir=weights_dir,
             checkpoint_path=checkpoint,
             conversion_output_version=version,
-            error=f"{type(exc).__name__}: {exc}",
+            error=_error_string(exc),
             repo_root=config.repo_root,
         )
-        return weights_dir, {
-            "mode": "deterministic_fallback",
-            "success": False,
-            "error": f"{type(exc).__name__}: {exc}",
-        }
+        return weights_dir, _conversion_status(
+            mode="deterministic_fallback",
+            success=False,
+            error=_error_string(exc),
+        )
 
 
 def _deterministic_fallback_response(prompt: str) -> str:
@@ -197,12 +207,13 @@ def run_local_completion(
             runtime_mode = "deterministic_fallback"
             response = _deterministic_fallback_response(prompt)
             success = False
-            error = f"{type(exc).__name__}: {exc}"
-            runtime_warning = f"Fell back to deterministic tracer completion: {type(exc).__name__}: {exc}"
+            error_message = _error_string(exc)
+            error = error_message
+            runtime_warning = f"Fell back to deterministic tracer completion: {error_message}"
 
     timing_ms = round((time.perf_counter() - start) * 1000.0, 3)
     artifact = {
-        "scope": "cactus_tracer_slice",
+        "scope": TRACER_SCOPE,
         "runtime_mode": runtime_mode,
         "success": success,
         "error": error,
@@ -245,7 +256,7 @@ def run_cactus_tracer_slice(config: TracerSliceConfig) -> TracerSliceResult:
     proof_satisfied = _acceptance_proof_satisfied(conversion_status, completion_payload)
     summary_path = (config.output_root / "run_summary.json").resolve()
     summary_payload = {
-        "scope": "cactus_tracer_slice",
+        "scope": TRACER_SCOPE,
         "freeze_metadata_path": _to_repo_relative(freeze_path, config.repo_root),
         "converted_weights_dir": _to_repo_relative(weights_dir, config.repo_root),
         "completion_artifact_path": _to_repo_relative(completion_path, config.repo_root),
