@@ -29,6 +29,10 @@ Thumbs.db
 .agents/
 sign-language-asl/
 
+# Xcode user-specific state
+**/xcuserdata/
+*.xcuserstate
+
 # Unsloth
 unsloth_compiled_cache/
 

@@ -6,9 +6,13 @@
 - Added runnable tracer CLI: `scripts/mobile/run_ios_tracer_slice.py`
 - Added SwiftUI app scaffold files under `ios/ASL-App/ASL-App/`
   - `ASL_AppApp.swift`
-  - `ContentView.swift`
-  - `LocalCactusInferenceClient.swift`
+  - `ContentView.swift` (runtime selector, input-path selector, clip selector, strict-proof toggle, full result contract rendering)
+  - `LocalCactusInferenceClient.swift` (fixture + RealLocal seam, retry-once behavior, strict-proof no-fallback behavior)
   - `Resources/local_cactus_response.json`
+  - `Resources/local_cactus_clips.json` (3 locked clips for Tensor + Video paths)
+- Added artifact logging contract in app Documents directory:
+  - Per-run JSON files (`ios_inference_v1` schema)
+  - Rolling session index (`session_index.json`)
 - Added behavior tests: `tests/runtime/test_ios_tracer_slice.py`
 
 ## What this proves now
