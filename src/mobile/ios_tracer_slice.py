@@ -1,4 +1,4 @@
-"""Issue #35 tracer slice: button-to-local-Cactus inference scaffold for iOS."""
+"""tracer slice: button-to-local-Cactus inference scaffold for iOS."""
 
 from __future__ import annotations
 

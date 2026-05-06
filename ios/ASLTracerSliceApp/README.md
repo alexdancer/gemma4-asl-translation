@@ -17,4 +17,3 @@ On macOS with Xcode installed:
 3. Run on target iPhone.
 4. Tap **Run Local Cactus Inference** and confirm gloss + confidence render.
 
-This repository's Linux environment cannot run Xcode/iPhone runtime checks.
