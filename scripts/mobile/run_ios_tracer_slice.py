@@ -6,10 +6,15 @@ from __future__ import annotations
 import argparse
 import json
 from pathlib import Path
+import sys
+
+REPO_ROOT = Path(__file__).resolve().parents[2]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
 
 from src.mobile.ios_tracer_slice import IOSTracerSliceConfig, result_to_dict, run_ios_tracer_slice
 
-DEFAULT_RESPONSE_FIXTURE = Path("ios/ASLTracerSliceApp/ASLTracerSliceApp/Resources/local_cactus_response.json")
+DEFAULT_RESPONSE_FIXTURE = Path("ios/ASL-App/ASL-App/Resources/local_cactus_response.json")
 DEFAULT_OUTPUT = Path("artifacts/ios_tracer_slice/local_inference_result.json")
 
 
@@ -42,7 +47,7 @@ def main() -> int:
             local_response_fixture=args.response_fixture,
             output_path=args.output,
             bundle_response_filename=args.bundle_response_filename,
-            repo_root=Path("."),
+            repo_root=REPO_ROOT,
         )
     )
     print(json.dumps(result_to_dict(result), indent=2, sort_keys=True))

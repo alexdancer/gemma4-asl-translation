@@ -64,8 +64,8 @@ def test_ios_tracer_slice_rejects_confidence_outside_unit_interval(tmp_path: Pat
 
 def test_ios_swiftui_scaffold_contains_button_and_result_text_contract() -> None:
     repo_root = Path(__file__).resolve().parents[2]
-    content_view = repo_root / "ios" / "ASLTracerSliceApp" / "ASLTracerSliceApp" / "ContentView.swift"
-    inference_client = repo_root / "ios" / "ASLTracerSliceApp" / "ASLTracerSliceApp" / "LocalCactusInferenceClient.swift"
+    content_view = repo_root / "ios" / "ASL-App" / "ASL-App" / "ContentView.swift"
+    inference_client = repo_root / "ios" / "ASL-App" / "ASL-App" / "LocalCactusInferenceClient.swift"
 
     assert content_view.exists(), "Expected iOS ContentView scaffold for issue #35"
     assert inference_client.exists(), "Expected local inference adapter scaffold for issue #35"

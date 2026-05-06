@@ -1,14 +1,14 @@
 {
   "acceptance": {
     "button_triggers_local_inference": true,
-    "device_runtime_follow_up": "Run ASLTracerSliceApp on target iPhone and capture screenshot/video proof.",
+    "device_runtime_follow_up": "Run ASL-App on target iPhone and capture screenshot/video proof.",
     "device_runtime_validated": false,
     "ui_displays_gloss_and_confidence": true
   },
-  "captured_at": "2026-05-06T00:28:13+00:00",
+  "captured_at": "2026-05-06T14:31:27+00:00",
   "inference": {
     "bundle_response_filename": "local_cactus_response.json",
-    "response_fixture": "ios/ASLTracerSliceApp/ASLTracerSliceApp/Resources/local_cactus_response.json",
+    "response_fixture": "ios/ASL-App/ASL-App/Resources/local_cactus_response.json",
     "runtime_mode": "local_cactus_mock",
     "success": true,
     "triggered_by": "button_tap"

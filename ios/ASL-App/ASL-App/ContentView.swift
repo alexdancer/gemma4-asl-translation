@@ -56,3 +56,7 @@ struct ContentView: View {
         .padding(20)
     }
 }
+
+#Preview {
+    ContentView(viewModel: InferenceViewModel(client: LocalCactusInferenceClient()))
+}

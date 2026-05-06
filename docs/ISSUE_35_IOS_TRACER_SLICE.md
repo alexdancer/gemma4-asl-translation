@@ -4,8 +4,8 @@
 
 - Added deterministic tracer module: `src/mobile/ios_tracer_slice.py`
 - Added runnable tracer CLI: `scripts/mobile/run_ios_tracer_slice.py`
-- Added SwiftUI app scaffold files under `ios/ASLTracerSliceApp/ASLTracerSliceApp/`
-  - `ASLTracerSliceApp.swift`
+- Added SwiftUI app scaffold files under `ios/ASL-App/ASL-App/`
+  - `ASL_AppApp.swift`
   - `ContentView.swift`
   - `LocalCactusInferenceClient.swift`
   - `Resources/local_cactus_response.json`
