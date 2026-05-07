@@ -1,0 +1,13 @@
+{
+  "schemaVersion": "ios_inference_v1",
+  "tensor": {
+    "clip_1": { "expectedGloss": "HELLO", "confidence": 0.912 },
+    "clip_2": { "expectedGloss": "THANK_YOU", "confidence": 0.854 },
+    "clip_3": { "expectedGloss": "PLEASE", "confidence": 0.781 }
+  },
+  "video": {
+    "clip_1": { "expectedGloss": "HELLO", "confidence": 0.903 },
+    "clip_2": { "expectedGloss": "THANK_YOU", "confidence": 0.812 },
+    "clip_3": { "expectedGloss": "PLEASE", "confidence": 0.744 }
+  }
+}

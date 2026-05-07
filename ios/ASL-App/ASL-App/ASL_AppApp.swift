@@ -1,7 +1,7 @@
 import SwiftUI
 
 @main
-struct ASLTracerSliceApp: App {
+struct ASL_AppApp: App {
     var body: some Scene {
         WindowGroup {
             ContentView(viewModel: InferenceViewModel(client: LocalCactusInferenceClient()))

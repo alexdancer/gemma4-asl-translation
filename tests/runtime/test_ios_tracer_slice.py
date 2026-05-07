@@ -64,8 +64,8 @@ def test_ios_tracer_slice_rejects_confidence_outside_unit_interval(tmp_path: Pat
 
 def test_ios_swiftui_scaffold_contains_button_and_result_text_contract() -> None:
     repo_root = Path(__file__).resolve().parents[2]
-    content_view = repo_root / "ios" / "ASLTracerSliceApp" / "ASLTracerSliceApp" / "ContentView.swift"
-    inference_client = repo_root / "ios" / "ASLTracerSliceApp" / "ASLTracerSliceApp" / "LocalCactusInferenceClient.swift"
+    content_view = repo_root / "ios" / "ASL-App" / "ASL-App" / "ContentView.swift"
+    inference_client = repo_root / "ios" / "ASL-App" / "ASL-App" / "LocalCactusInferenceClient.swift"
 
     assert content_view.exists(), "Expected iOS ContentView scaffold for issue #35"
     assert inference_client.exists(), "Expected local inference adapter scaffold for issue #35"
@@ -74,8 +74,18 @@ def test_ios_swiftui_scaffold_contains_button_and_result_text_contract() -> None
     inference_source = inference_client.read_text(encoding="utf-8")
 
     assert 'Button("Run Local Cactus Inference")' in content_source
-    assert "Predicted Gloss" in content_source
+    assert "Primary Output" in content_source
     assert "Confidence" in content_source
 
-    assert "func infer() async throws -> InferenceResult" in inference_source
-    assert "TODO: Replace fixture-backed response with real cactusComplete call" in inference_source
+    assert "func infer(clip: DemoClip, inputPath: InputPath, runtimeMode: RuntimeMode, strictProofMode: Bool) async -> InferenceResult" in inference_source
+    assert "final class CactusRuntimeAdapter" in inference_source
+    assert "cactusComplete" in inference_source
+    assert "cactusInit" in inference_source
+    assert "local_cactus_runtime_success" in inference_source
+    assert "strict_proof_sdk_unavailable" in inference_source
+    assert "strict_proof_model_init_failed" in inference_source
+    assert "strict_proof_local_runtime_failed" in inference_source
+    assert "Button(\"Real Proof Run\")" in content_source
+    assert "private actor InferenceArtifactLogger" in content_source
+    assert "session_index.json" in content_source
+    assert "UUID().uuidString" in content_source

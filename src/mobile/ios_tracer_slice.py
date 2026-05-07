@@ -85,7 +85,7 @@ def run_ios_tracer_slice(config: IOSTracerSliceConfig) -> IOSTracerSliceResult:
             "button_triggers_local_inference": True,
             "ui_displays_gloss_and_confidence": True,
             "device_runtime_validated": False,
-            "device_runtime_follow_up": "Run ASLTracerSliceApp on target iPhone and capture screenshot/video proof.",
+            "device_runtime_follow_up": "Run ASL-App on target iPhone and capture screenshot/video proof.",
         },
     }
     _write_json(config.output_path, artifact_payload)
