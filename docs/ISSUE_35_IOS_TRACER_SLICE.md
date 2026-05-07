@@ -30,3 +30,22 @@ This environment cannot run Xcode/iPhone runtime checks. Device-only validation 
 2. Tap **Run Local Cactus Inference** in app runtime.
 3. Capture screenshot/video proof that gloss + confidence render in-app.
 4. Replace fixture-backed local client with real Cactus runtime call at the TODO seam in `LocalCactusInferenceClient.swift`.
+
+## New blocker tracking (sub-issue)
+
+- Sub-issue created: **#50**
+  - https://github.com/alexdancer/sign-language-asl/issues/50
+  - Title: `Issue 35 blocker: produce Cactus-compatible model artifacts for iOS real proof run`
+
+### Why #50 exists
+
+Issue #35 now has SDK wiring, strict proof route handling, and proof-run UI flow, but still needs a runtime-loadable Cactus model artifact bundle so `cactusInit` succeeds and `cactusComplete` returns real output in app runtime.
+
+### Completion gate from #50 back into #35
+
+- Successful strict proof run with:
+  - `runtimeMode=local_cactus`
+  - `routeReason=local_cactus_runtime_success`
+  - non-empty gloss + confidence
+  - no fallback route
+- Artifact evidence recorded in `ios_tracer_artifacts/session_index.json`.

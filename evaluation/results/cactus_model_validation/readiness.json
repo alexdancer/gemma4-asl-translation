@@ -1,0 +1,5 @@
+{
+  "error": "Converted Cactus weights directory not found: /Users/alex/Documents/ASL-project/sign-language-asl/checkpoints/gemma4_e4b_cactus_int4",
+  "readiness_passed": false,
+  "scope": "cactus_model_validation"
+}

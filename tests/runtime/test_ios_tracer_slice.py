@@ -78,9 +78,14 @@ def test_ios_swiftui_scaffold_contains_button_and_result_text_contract() -> None
     assert "Confidence" in content_source
 
     assert "func infer(clip: DemoClip, inputPath: InputPath, runtimeMode: RuntimeMode, strictProofMode: Bool) async -> InferenceResult" in inference_source
-    assert "TODO: Replace fixture-backed response with real cactusComplete call" in inference_source
+    assert "final class CactusRuntimeAdapter" in inference_source
+    assert "cactusComplete" in inference_source
+    assert "cactusInit" in inference_source
+    assert "local_cactus_runtime_success" in inference_source
+    assert "strict_proof_sdk_unavailable" in inference_source
+    assert "strict_proof_model_init_failed" in inference_source
     assert "strict_proof_local_runtime_failed" in inference_source
-    assert "fixture_load_failed" in inference_source
+    assert "Button(\"Real Proof Run\")" in content_source
     assert "private actor InferenceArtifactLogger" in content_source
     assert "session_index.json" in content_source
     assert "UUID().uuidString" in content_source

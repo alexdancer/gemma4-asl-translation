@@ -20,20 +20,41 @@ final class InferenceViewModel: ObservableObject {
     @Published var runtimeModeText: String = "—"
     @Published var routeReasonText: String = "—"
     @Published var statusText: String = "Tap Run to start inference"
+    @Published var modelPathDebugText: String = "Model Path: unresolved"
 
     private let client: LocalCactusInferenceProviding
     private let logger = InferenceArtifactLogger()
 
     init(client: LocalCactusInferenceProviding) {
         self.client = client
+        self.modelPathDebugText = "Model Path: \(client.debugModelPathDescription())"
     }
 
     func runInference() {
+        runInference(
+            clip: selectedClip,
+            inputPath: selectedInputPath,
+            runtimeMode: selectedRuntimeMode,
+            strictProofMode: strictProofMode
+        )
+    }
+
+    func runRealProofInference() {
+        runInference(
+            clip: .clip1,
+            inputPath: .tensor,
+            runtimeMode: .realLocal,
+            strictProofMode: true
+        )
+    }
+
+    private func runInference(clip: DemoClip, inputPath: InputPath, runtimeMode: RuntimeMode, strictProofMode: Bool) {
         Task {
+            modelPathDebugText = "Model Path: \(client.debugModelPathDescription())"
             let result = await client.infer(
-                clip: selectedClip,
-                inputPath: selectedInputPath,
-                runtimeMode: selectedRuntimeMode,
+                clip: clip,
+                inputPath: inputPath,
+                runtimeMode: runtimeMode,
                 strictProofMode: strictProofMode
             )
             render(result: result)
@@ -191,6 +212,11 @@ struct ContentView: View {
             }
             .buttonStyle(.borderedProminent)
 
+            Button("Real Proof Run") {
+                viewModel.runRealProofInference()
+            }
+            .buttonStyle(.bordered)
+
             Group {
                 Text("Primary Output: \(viewModel.primaryGlossText)")
                 Text("Raw Top Gloss: \(viewModel.rawGlossText)")
@@ -198,6 +224,9 @@ struct ContentView: View {
                 Text("Latency: \(viewModel.latencyText)")
                 Text("Runtime Mode: \(viewModel.runtimeModeText)")
                 Text("Route Reason: \(viewModel.routeReasonText)")
+                Text(viewModel.modelPathDebugText)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
                 Text(viewModel.statusText)
                     .foregroundStyle(.secondary)
             }
