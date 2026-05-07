@@ -39,12 +39,10 @@ unsloth_compiled_cache/
 # Mobile export artifacts
 cactus_export/
 
-# Checkpoints
-checkpoints/
-
 # Ephemeral evaluation/demo outputs
 evaluation/results/*_smoke/
 evaluation/results/prerecorded_q64_demo/
 
 issues/
 ralph/
+checkpoints/base_gemma4_e4b/

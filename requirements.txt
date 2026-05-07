@@ -2,6 +2,8 @@ torch
 torchvision
 mediapipe
 transformers
+huggingface_hub
+safetensors
 unsloth
 bitsandbytes
 peft
