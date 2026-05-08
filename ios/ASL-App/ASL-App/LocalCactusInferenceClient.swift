@@ -291,7 +291,30 @@ final class LocalCactusInferenceClient: LocalCactusInferenceProviding {
 
         for attempt in 0...maxRetryAttempts {
             do {
-                let endpoint = URL(string: ProcessInfo.processInfo.environment["ASL_CLOUD_ENDPOINT"] ?? "http://127.0.0.1:8000/v1/translate-sign")!
+                guard let endpoint = resolveCloudEndpoint() else {
+                    return failedResult(
+                        clip: clip,
+                        inputPath: inputPath,
+                        started: started,
+                        requestID: requestID,
+                        routeReason: "cloud_endpoint_not_configured",
+                        statusMessage: "Cloud endpoint is not configured. Set ASL_CLOUD_ENDPOINT (or Info.plist ASLCloudEndpoint) to your deployed /v1/translate-sign URL.",
+                        expectedGloss: (try? expectedGlossFor(clip: clip, inputPath: inputPath)) ?? ""
+                    )
+                }
+
+                if isPhysicalDeviceLoopback(endpoint: endpoint) {
+                    return failedResult(
+                        clip: clip,
+                        inputPath: inputPath,
+                        started: started,
+                        requestID: requestID,
+                        routeReason: "cloud_endpoint_loopback_on_device",
+                        statusMessage: "Endpoint points to localhost on iPhone. Use a reachable cloud URL for /v1/translate-sign.",
+                        expectedGloss: (try? expectedGlossFor(clip: clip, inputPath: inputPath)) ?? ""
+                    )
+                }
+
                 var request = URLRequest(url: endpoint)
                 request.httpMethod = "POST"
                 request.timeoutInterval = 12
@@ -384,6 +407,51 @@ final class LocalCactusInferenceClient: LocalCactusInferenceProviding {
             requestID: requestID,
             statusMessage: "Request failed after retry. Please try again.",
             expectedGloss: (try? expectedGlossFor(clip: clip, inputPath: inputPath)) ?? "",
+            success: false
+        )
+    }
+
+    private func resolveCloudEndpoint() -> URL? {
+        if let env = ProcessInfo.processInfo.environment["ASL_CLOUD_ENDPOINT"], env.isEmpty == false {
+            return URL(string: env)
+        }
+        if let plist = Bundle.main.object(forInfoDictionaryKey: "ASLCloudEndpoint") as? String, plist.isEmpty == false {
+            return URL(string: plist)
+        }
+        return nil
+    }
+
+    private func isPhysicalDeviceLoopback(endpoint: URL) -> Bool {
+        #if targetEnvironment(simulator)
+        return false
+        #else
+        guard let host = endpoint.host?.lowercased() else { return false }
+        return host == "127.0.0.1" || host == "localhost"
+        #endif
+    }
+
+    private func failedResult(
+        clip: DemoClip,
+        inputPath: InputPath,
+        started: Date,
+        requestID: String,
+        routeReason: String,
+        statusMessage: String,
+        expectedGloss: String
+    ) -> InferenceResult {
+        let latency = max(Int(Date().timeIntervalSince(started) * 1000), 1)
+        return InferenceResult(
+            clipID: clip.rawValue,
+            inputPath: inputPath,
+            gloss: "",
+            translation: "",
+            confidence: 0,
+            latencyMs: latency,
+            runtimeMode: "cloud",
+            routeReason: routeReason,
+            requestID: requestID,
+            statusMessage: statusMessage,
+            expectedGloss: expectedGloss,
             success: false
         )
     }

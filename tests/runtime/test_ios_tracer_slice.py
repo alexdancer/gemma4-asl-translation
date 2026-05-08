@@ -89,6 +89,10 @@ def test_ios_swiftui_scaffold_contains_button_and_result_text_contract() -> None
     assert "maxRetryAttempts = 1" in inference_source
     assert "cloud_endpoint_retry_exhausted" in inference_source
     assert "for attempt in 0...maxRetryAttempts" in inference_source
+    assert "resolveCloudEndpoint" in inference_source
+    assert "ASLCloudEndpoint" in inference_source
+    assert "cloud_endpoint_loopback_on_device" in inference_source
+    assert "cloud_endpoint_not_configured" in inference_source
     assert "failure?.retryable" in inference_source
     assert "mapCloudErrorMessage(errorCode: failure?.errorCode, fallbackMessage: failure?.message, exhaustedRetry: attempt >= maxRetryAttempts)" in inference_source
     assert "let mimeType = ext == \"mp4\" ? \"video/mp4\" : \"video/quicktime\"" in inference_source
