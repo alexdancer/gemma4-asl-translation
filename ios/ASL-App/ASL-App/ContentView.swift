@@ -14,6 +14,7 @@ final class InferenceViewModel: ObservableObject {
     @Published var strictProofMode: Bool = false
 
     @Published var primaryGlossText: String = "—"
+    @Published var translationText: String = "—"
     @Published var rawGlossText: String = "—"
     @Published var confidenceText: String = "—"
     @Published var latencyText: String = "—"
@@ -43,8 +44,8 @@ final class InferenceViewModel: ObservableObject {
         runInference(
             clip: .clip1,
             inputPath: .tensor,
-            runtimeMode: .realLocal,
-            strictProofMode: true
+            runtimeMode: .cloud,
+            strictProofMode: false
         )
     }
 
@@ -66,6 +67,7 @@ final class InferenceViewModel: ObservableObject {
         let isUnsure = result.confidence < confidenceThreshold
         primaryGlossText = isUnsure ? "UNSURE" : result.gloss
         rawGlossText = result.gloss.isEmpty ? "—" : result.gloss
+        translationText = result.translation.isEmpty ? "—" : result.translation
         confidenceText = String(format: "%.1f%%", result.confidence * 100)
         latencyText = "\(result.latencyMs) ms"
         runtimeModeText = result.runtimeMode
@@ -165,11 +167,7 @@ private actor InferenceArtifactLogger {
 }
 
 private var defaultRuntimeMode: RuntimeMode {
-    #if DEBUG
-    return .demo
-    #else
-    return .realLocal
-    #endif
+    .cloud
 }
 
 struct ContentView: View {
@@ -206,8 +204,10 @@ struct ContentView: View {
             .pickerStyle(.segmented)
 
             Toggle("Strict Proof Mode (no fallback)", isOn: $viewModel.strictProofMode)
+                .disabled(true)
+                .opacity(0.5)
 
-            Button("Run Local Cactus Inference") {
+            Button("Run Cloud Translation") {
                 viewModel.runInference()
             }
             .buttonStyle(.borderedProminent)
@@ -220,6 +220,7 @@ struct ContentView: View {
             Group {
                 Text("Primary Output: \(viewModel.primaryGlossText)")
                 Text("Raw Top Gloss: \(viewModel.rawGlossText)")
+                Text("Translation: \(viewModel.translationText)")
                 Text("Confidence: \(viewModel.confidenceText)")
                 Text("Latency: \(viewModel.latencyText)")
                 Text("Runtime Mode: \(viewModel.runtimeModeText)")

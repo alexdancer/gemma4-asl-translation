@@ -1,13 +1,68 @@
 import Foundation
 
-#if canImport(Cactus)
-import Cactus
+#if canImport(cactus)
+import cactus
+
+typealias CactusModelT = cactus_model_t
+
+enum CactusShimError: Error {
+    case initFailed
+    case completeFailed(Int32, String)
+}
+
+@inline(__always)
+func cactusInit(_ modelPath: String, _ corpusDir: String?, _ cacheIndex: Bool) throws -> CactusModelT {
+    guard let model = cactus_init(modelPath, corpusDir, cacheIndex) else {
+        throw CactusShimError.initFailed
+    }
+    return model
+}
+
+@inline(__always)
+func cactusDestroy(_ model: CactusModelT) {
+    cactus_destroy(model)
+}
+
+@inline(__always)
+func cactusComplete(
+    _ model: CactusModelT,
+    _ messagesJSON: String,
+    _ optionsJSON: String?,
+    _ toolsJSON: String?,
+    _ callback: cactus_token_callback?,
+    _ userData: UnsafeMutableRawPointer?
+) throws -> String {
+    let bufferSize = 64 * 1024
+    var responseBuffer = Array<CChar>(repeating: 0, count: bufferSize)
+
+    let rc = cactus_complete(
+        model,
+        messagesJSON,
+        &responseBuffer,
+        responseBuffer.count,
+        optionsJSON,
+        toolsJSON,
+        callback,
+        userData,
+        nil,
+        0
+    )
+
+    guard rc == 0 else {
+        let errPtr = cactus_get_last_error()
+        let err = errPtr.map { String(cString: $0) } ?? "unknown cactus error"
+        throw CactusShimError.completeFailed(rc, err)
+    }
+
+    return String(cString: responseBuffer)
+}
 #endif
 
 struct InferenceResult {
     let clipID: String
     let inputPath: InputPath
     let gloss: String
+    let translation: String
     let confidence: Double
     let latencyMs: Int
     let runtimeMode: String
@@ -41,8 +96,7 @@ enum DemoClip: String, CaseIterable, Identifiable {
 }
 
 enum RuntimeMode: String, CaseIterable, Identifiable {
-    case demo = "Demo"
-    case realLocal = "RealLocal"
+    case cloud = "Cloud"
 
     var id: String { rawValue }
 }
@@ -77,9 +131,9 @@ struct LocalCactusPrediction {
 enum CactusRuntimeError: Error {
     case sdkUnavailable
     case modelPathUnavailable
-    case modelInitFailed
+    case modelInitFailed(String)
     case responseDecodeFailed
-    case invocationFailed
+    case invocationFailed(String)
 }
 
 protocol CactusRuntimeProviding {
@@ -94,12 +148,12 @@ private struct CactusCompletionResponse: Decodable {
 }
 
 final class CactusRuntimeAdapter: CactusRuntimeProviding {
-    #if canImport(Cactus)
+    #if canImport(cactus)
     private var model: CactusModelT?
     #endif
 
     func debugResolvedModelPath() -> String? {
-        #if canImport(Cactus)
+        #if canImport(cactus)
         return resolveModelPath()
         #else
         return nil
@@ -107,16 +161,23 @@ final class CactusRuntimeAdapter: CactusRuntimeProviding {
     }
 
     func infer(clip: DemoClip, inputPath: InputPath) async throws -> LocalCactusPrediction {
-        #if canImport(Cactus)
+        #if canImport(cactus)
         let modelHandle = try loadModelIfNeeded()
         let messages = try makeMessagesJSON(clip: clip, inputPath: inputPath)
         let options = "{\"max_tokens\":64,\"temperature\":0.0}"
 
         let responseJson: String
         do {
-            responseJson = try cactusComplete(modelHandle, messages, options, nil, nil)
+            responseJson = try cactusComplete(modelHandle, messages, options, nil, nil, nil)
+        } catch let error as CactusShimError {
+            switch error {
+            case .completeFailed(let code, let message):
+                throw CactusRuntimeError.invocationFailed("cactus_complete rc=\(code): \(message)")
+            case .initFailed:
+                throw CactusRuntimeError.invocationFailed("unexpected init failure inside complete path")
+            }
         } catch {
-            throw CactusRuntimeError.invocationFailed
+            throw CactusRuntimeError.invocationFailed("unknown completion error: \(error.localizedDescription)")
         }
 
         guard let data = responseJson.data(using: .utf8),
@@ -126,12 +187,12 @@ final class CactusRuntimeAdapter: CactusRuntimeProviding {
         }
 
         guard decoded.success else {
-            throw CactusRuntimeError.invocationFailed
+            throw CactusRuntimeError.invocationFailed("runtime returned success=false; payload=\(responseJson.prefix(200))")
         }
 
         let raw = (decoded.response ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
         guard raw.isEmpty == false else {
-            throw CactusRuntimeError.invocationFailed
+            throw CactusRuntimeError.invocationFailed("runtime returned empty response; payload=\(responseJson.prefix(200))")
         }
 
         return LocalCactusPrediction(
@@ -144,7 +205,7 @@ final class CactusRuntimeAdapter: CactusRuntimeProviding {
         #endif
     }
 
-    #if canImport(Cactus)
+    #if canImport(cactus)
     deinit {
         if let model {
             cactusDestroy(model)
@@ -161,7 +222,9 @@ final class CactusRuntimeAdapter: CactusRuntimeProviding {
         }
 
         guard let initialized = try? cactusInit(modelPath, nil, false) else {
-            throw CactusRuntimeError.modelInitFailed
+            let errPtr = cactus_get_last_error()
+            let err = errPtr.map { String(cString: $0) } ?? "unknown cactus_init error"
+            throw CactusRuntimeError.modelInitFailed(err)
         }
 
         model = initialized
@@ -197,7 +260,7 @@ final class LocalCactusInferenceClient: LocalCactusInferenceProviding {
     }
 
     func debugModelPathDescription() -> String {
-        #if canImport(Cactus)
+        #if canImport(cactus)
         return runtimeAdapter.debugResolvedModelPath() ?? "unresolved"
         #else
         return "sdk_unavailable"
@@ -205,132 +268,71 @@ final class LocalCactusInferenceClient: LocalCactusInferenceProviding {
     }
 
     func infer(clip: DemoClip, inputPath: InputPath, runtimeMode: RuntimeMode, strictProofMode: Bool) async -> InferenceResult {
-        let start = Date()
+        _ = strictProofMode
+        let started = Date()
+        let requestID = UUID().uuidString
 
-        switch runtimeMode {
-        case .demo:
-            do {
-                let fixture = try loadFixture(clip: clip, inputPath: inputPath)
-                let latency = max(Int(Date().timeIntervalSince(start) * 1000), 1)
+        do {
+            let endpoint = URL(string: ProcessInfo.processInfo.environment["ASL_CLOUD_ENDPOINT"] ?? "http://127.0.0.1:8000/v1/translate-sign")!
+            var request = URLRequest(url: endpoint)
+            request.httpMethod = "POST"
+            request.timeoutInterval = 12
+            request.setValue(requestID, forHTTPHeaderField: "X-Request-ID")
+
+            let boundary = "Boundary-\(UUID().uuidString)"
+            request.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
+            request.httpBody = makeMultipartBody(boundary: boundary, clip: clip)
+
+            let (data, response) = try await URLSession.shared.data(for: request)
+            let http = response as? HTTPURLResponse
+
+            if let http, (200..<300).contains(http.statusCode) {
+                let decoded = try JSONDecoder().decode(CloudSuccessResponse.self, from: data)
                 return InferenceResult(
                     clipID: clip.rawValue,
                     inputPath: inputPath,
-                    gloss: fixture.expectedGloss,
-                    confidence: fixture.confidence,
-                    latencyMs: latency,
-                    runtimeMode: "fixture",
-                    routeReason: "fallback_fixture_demo_mode",
-                    statusMessage: "Demo mode: fixture inference complete",
-                    expectedGloss: fixture.expectedGloss,
-                    success: true
-                )
-            } catch {
-                let latency = max(Int(Date().timeIntervalSince(start) * 1000), 1)
-                return InferenceResult(
-                    clipID: clip.rawValue,
-                    inputPath: inputPath,
-                    gloss: "",
-                    confidence: 0,
-                    latencyMs: latency,
-                    runtimeMode: "fixture",
-                    routeReason: "fixture_load_failed",
-                    statusMessage: "Demo mode failed: fixture load error",
-                    expectedGloss: "",
-                    success: false
-                )
-            }
-
-        case .realLocal:
-            var lastError: CactusRuntimeError = .invocationFailed
-            for _ in 1...2 {
-                do {
-                    let prediction = try await runtimeAdapter.infer(clip: clip, inputPath: inputPath)
-                    let latency = max(Int(Date().timeIntervalSince(start) * 1000), 1)
-                    return InferenceResult(
-                        clipID: clip.rawValue,
-                        inputPath: inputPath,
-                        gloss: prediction.gloss,
-                        confidence: prediction.confidence,
-                        latencyMs: latency,
-                        runtimeMode: "local_cactus",
-                        routeReason: "local_cactus_runtime_success",
-                        statusMessage: "RealLocal: local Cactus runtime inference complete",
-                        expectedGloss: (try? expectedGlossFor(clip: clip, inputPath: inputPath)) ?? "",
-                        success: true
-                    )
-                } catch let error as CactusRuntimeError {
-                    lastError = error
-                } catch {
-                    lastError = .invocationFailed
-                }
-            }
-
-            if strictProofMode {
-                let latency = max(Int(Date().timeIntervalSince(start) * 1000), 1)
-                let routeReason: String
-                let statusMessage: String
-                switch lastError {
-                case .sdkUnavailable:
-                    routeReason = "strict_proof_sdk_unavailable"
-                    statusMessage = "Strict proof mode: Cactus SDK unavailable (no fallback)"
-                case .modelPathUnavailable:
-                    routeReason = "strict_proof_model_path_unavailable"
-                    statusMessage = "Strict proof mode: model path unavailable (set CACTUS_MODEL_PATH or bundle cactus-model)"
-                case .modelInitFailed:
-                    routeReason = "strict_proof_model_init_failed"
-                    statusMessage = "Strict proof mode: cactusInit failed (invalid/incompatible model bundle)"
-                case .responseDecodeFailed:
-                    routeReason = "strict_proof_response_decode_failed"
-                    statusMessage = "Strict proof mode: runtime response decode failed"
-                case .invocationFailed:
-                    routeReason = "strict_proof_local_runtime_failed"
-                    statusMessage = "Strict proof mode: local runtime failed after retries (no fallback)"
-                }
-
-                return InferenceResult(
-                    clipID: clip.rawValue,
-                    inputPath: inputPath,
-                    gloss: "",
-                    confidence: 0,
-                    latencyMs: latency,
-                    runtimeMode: "local_cactus",
-                    routeReason: routeReason,
-                    statusMessage: statusMessage,
+                    gloss: decoded.gloss,
+                    translation: decoded.translation,
+                    confidence: decoded.confidence,
+                    latencyMs: decoded.latencyMs,
+                    runtimeMode: "cloud",
+                    routeReason: "cloud_endpoint_success",
+                    statusMessage: "Cloud translation complete",
                     expectedGloss: (try? expectedGlossFor(clip: clip, inputPath: inputPath)) ?? "",
-                    success: false
+                    success: true
                 )
             }
 
-            do {
-                let fixture = try loadFixture(clip: clip, inputPath: inputPath)
-                let latency = max(Int(Date().timeIntervalSince(start) * 1000), 1)
-                return InferenceResult(
-                    clipID: clip.rawValue,
-                    inputPath: inputPath,
-                    gloss: fixture.expectedGloss,
-                    confidence: fixture.confidence,
-                    latencyMs: latency,
-                    runtimeMode: "fixture",
-                    routeReason: "fallback_after_local_runtime_failure",
-                    statusMessage: "RealLocal failed; using fixture fallback",
-                    expectedGloss: fixture.expectedGloss,
-                    success: true
-                )
-            } catch {
-                let latency = max(Int(Date().timeIntervalSince(start) * 1000), 1)
-                return InferenceResult(
-                    clipID: clip.rawValue,
-                    inputPath: inputPath,
-                    gloss: "",
-                    confidence: 0,
-                    latencyMs: latency,
-                    runtimeMode: "fixture",
-                    routeReason: "fixture_load_failed_after_local_runtime_failure",
-                    statusMessage: "RealLocal failed and fixture fallback unavailable",
-                    expectedGloss: "",
-                    success: false
-                )
-            }
+            let failure = (try? JSONDecoder().decode(CloudErrorResponse.self, from: data))
+            let latency = max(Int(Date().timeIntervalSince(started) * 1000), 1)
+            return InferenceResult(
+                clipID: clip.rawValue,
+                inputPath: inputPath,
+                gloss: "",
+                translation: "",
+                confidence: 0,
+                latencyMs: latency,
+                runtimeMode: "cloud",
+                routeReason: "cloud_endpoint_error",
+                statusMessage: failure?.message ?? "Cloud request failed",
+                expectedGloss: (try? expectedGlossFor(clip: clip, inputPath: inputPath)) ?? "",
+                success: false
+            )
+        } catch {
+            let latency = max(Int(Date().timeIntervalSince(started) * 1000), 1)
+            return InferenceResult(
+                clipID: clip.rawValue,
+                inputPath: inputPath,
+                gloss: "",
+                translation: "",
+                confidence: 0,
+                latencyMs: latency,
+                runtimeMode: "cloud",
+                routeReason: "cloud_endpoint_unreachable",
+                statusMessage: "Cloud request failed: \(error.localizedDescription)",
+                expectedGloss: (try? expectedGlossFor(clip: clip, inputPath: inputPath)) ?? "",
+                success: false
+            )
         }
     }
 
@@ -363,5 +365,48 @@ final class LocalCactusInferenceClient: LocalCactusInferenceProviding {
             throw FixtureLoadError.missingClipEntry
         }
         return entry
+    }
+
+    private func makeMultipartBody(boundary: String, clip: DemoClip) -> Data {
+        var data = Data()
+        let payload = "demo-video-bytes-\(clip.fixtureKey)".data(using: .utf8) ?? Data()
+
+        data.append("--\(boundary)\r\n".data(using: .utf8)!)
+        data.append("Content-Disposition: form-data; name=\"video\"; filename=\"\(clip.fixtureKey).mov\"\r\n".data(using: .utf8)!)
+        data.append("Content-Type: video/quicktime\r\n\r\n".data(using: .utf8)!)
+        data.append(payload)
+        data.append("\r\n--\(boundary)--\r\n".data(using: .utf8)!)
+
+        return data
+    }
+}
+
+private struct CloudSuccessResponse: Decodable {
+    let requestId: String?
+    let gloss: String
+    let translation: String
+    let confidence: Double
+    let latencyMs: Int
+
+    private enum CodingKeys: String, CodingKey {
+        case requestId = "request_id"
+        case gloss
+        case translation
+        case confidence
+        case latencyMs = "latency_ms"
+    }
+}
+
+private struct CloudErrorResponse: Decodable {
+    let errorCode: String
+    let message: String
+    let requestId: String?
+    let retryable: Bool
+
+    private enum CodingKeys: String, CodingKey {
+        case errorCode = "error_code"
+        case message
+        case requestId = "request_id"
+        case retryable
     }
 }
