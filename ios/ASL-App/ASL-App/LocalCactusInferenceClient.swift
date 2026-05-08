@@ -103,7 +103,14 @@ enum RuntimeMode: String, CaseIterable, Identifiable {
 }
 
 protocol LocalCactusInferenceProviding {
-    func infer(clip: DemoClip, inputPath: InputPath, runtimeMode: RuntimeMode, strictProofMode: Bool) async -> InferenceResult
+    func infer(
+        clip: DemoClip,
+        inputPath: InputPath,
+        runtimeMode: RuntimeMode,
+        strictProofMode: Bool,
+        uploadVideoData: Data?,
+        uploadFilename: String?
+    ) async -> InferenceResult
     func debugModelPathDescription() -> String
 }
 
@@ -268,8 +275,16 @@ final class LocalCactusInferenceClient: LocalCactusInferenceProviding {
         #endif
     }
 
-    func infer(clip: DemoClip, inputPath: InputPath, runtimeMode: RuntimeMode, strictProofMode: Bool) async -> InferenceResult {
+    func infer(
+        clip: DemoClip,
+        inputPath: InputPath,
+        runtimeMode: RuntimeMode,
+        strictProofMode: Bool,
+        uploadVideoData: Data?,
+        uploadFilename: String?
+    ) async -> InferenceResult {
         _ = strictProofMode
+        _ = runtimeMode
         let started = Date()
         let requestID = UUID().uuidString
 
@@ -282,7 +297,12 @@ final class LocalCactusInferenceClient: LocalCactusInferenceProviding {
 
             let boundary = "Boundary-\(UUID().uuidString)"
             request.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
-            request.httpBody = makeMultipartBody(boundary: boundary, clip: clip)
+            request.httpBody = makeMultipartBody(
+                boundary: boundary,
+                clip: clip,
+                uploadVideoData: uploadVideoData,
+                uploadFilename: uploadFilename
+            )
 
             let (data, response) = try await URLSession.shared.data(for: request)
             let http = response as? HTTPURLResponse
@@ -371,12 +391,18 @@ final class LocalCactusInferenceClient: LocalCactusInferenceProviding {
         return entry
     }
 
-    private func makeMultipartBody(boundary: String, clip: DemoClip) -> Data {
+    private func makeMultipartBody(
+        boundary: String,
+        clip: DemoClip,
+        uploadVideoData: Data?,
+        uploadFilename: String?
+    ) -> Data {
         var data = Data()
-        let payload = "demo-video-bytes-\(clip.fixtureKey)".data(using: .utf8) ?? Data()
+        let payload = uploadVideoData ?? ("demo-video-bytes-\(clip.fixtureKey)".data(using: .utf8) ?? Data())
+        let filename = uploadFilename ?? "\(clip.fixtureKey).mov"
 
         data.append("--\(boundary)\r\n".data(using: .utf8)!)
-        data.append("Content-Disposition: form-data; name=\"video\"; filename=\"\(clip.fixtureKey).mov\"\r\n".data(using: .utf8)!)
+        data.append("Content-Disposition: form-data; name=\"video\"; filename=\"\(filename)\"\r\n".data(using: .utf8)!)
         data.append("Content-Type: video/quicktime\r\n\r\n".data(using: .utf8)!)
         data.append(payload)
         data.append("\r\n--\(boundary)--\r\n".data(using: .utf8)!)

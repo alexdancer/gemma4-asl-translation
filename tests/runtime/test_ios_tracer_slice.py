@@ -73,18 +73,19 @@ def test_ios_swiftui_scaffold_contains_button_and_result_text_contract() -> None
     content_source = content_view.read_text(encoding="utf-8")
     inference_source = inference_client.read_text(encoding="utf-8")
 
-    assert 'Button("Run Local Cactus Inference")' in content_source
+    assert 'Button("Run Cloud Translation")' in content_source
     assert "Primary Output" in content_source
+    assert "Translation" in content_source
     assert "Confidence" in content_source
 
-    assert "func infer(clip: DemoClip, inputPath: InputPath, runtimeMode: RuntimeMode, strictProofMode: Bool) async -> InferenceResult" in inference_source
-    assert "final class CactusRuntimeAdapter" in inference_source
-    assert "cactusComplete" in inference_source
-    assert "cactusInit" in inference_source
-    assert "local_cactus_runtime_success" in inference_source
-    assert "strict_proof_sdk_unavailable" in inference_source
-    assert "strict_proof_model_init_failed" in inference_source
-    assert "strict_proof_local_runtime_failed" in inference_source
+    assert "func infer(" in inference_source
+    assert "uploadVideoData: Data?" in inference_source
+    assert "uploadFilename: String?" in inference_source
+    assert "request.setValue(requestID, forHTTPHeaderField: \"X-Request-ID\")" in inference_source
+    assert "multipart/form-data; boundary=" in inference_source
+    assert "cloud_endpoint_success" in inference_source
+    assert "cloud_endpoint_error" in inference_source
+    assert "cloud_endpoint_unreachable" in inference_source
     assert "Button(\"Real Proof Run\")" in content_source
     assert "private actor InferenceArtifactLogger" in content_source
     assert "session_index.json" in content_source

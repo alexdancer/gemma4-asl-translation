@@ -1,6 +1,7 @@
 import SwiftUI
 import Foundation
 import Combine
+import UniformTypeIdentifiers
 
 private let confidenceThreshold = 0.70
 private let latencySoftTargetMs = 500
@@ -33,12 +34,14 @@ final class InferenceViewModel: ObservableObject {
         self.modelPathDebugText = "Model Path: \(client.debugModelPathDescription())"
     }
 
-    func runInference() {
+    func runInference(uploadVideoData: Data? = nil, uploadFilename: String? = nil) {
         runInference(
             clip: selectedClip,
             inputPath: selectedInputPath,
             runtimeMode: selectedRuntimeMode,
-            strictProofMode: strictProofMode
+            strictProofMode: strictProofMode,
+            uploadVideoData: uploadVideoData,
+            uploadFilename: uploadFilename
         )
     }
 
@@ -47,11 +50,20 @@ final class InferenceViewModel: ObservableObject {
             clip: .clip1,
             inputPath: .tensor,
             runtimeMode: .cloud,
-            strictProofMode: false
+            strictProofMode: false,
+            uploadVideoData: nil,
+            uploadFilename: nil
         )
     }
 
-    private func runInference(clip: DemoClip, inputPath: InputPath, runtimeMode: RuntimeMode, strictProofMode: Bool) {
+    private func runInference(
+        clip: DemoClip,
+        inputPath: InputPath,
+        runtimeMode: RuntimeMode,
+        strictProofMode: Bool,
+        uploadVideoData: Data?,
+        uploadFilename: String?
+    ) {
         isLoading = true
         statusText = "Uploading video and waiting for translation…"
         Task {
@@ -60,7 +72,9 @@ final class InferenceViewModel: ObservableObject {
                 clip: clip,
                 inputPath: inputPath,
                 runtimeMode: runtimeMode,
-                strictProofMode: strictProofMode
+                strictProofMode: strictProofMode,
+                uploadVideoData: uploadVideoData,
+                uploadFilename: uploadFilename
             )
             render(result: result)
             isLoading = false
@@ -178,6 +192,8 @@ private var defaultRuntimeMode: RuntimeMode {
 
 struct ContentView: View {
     @StateObject private var viewModel: InferenceViewModel
+    @State private var showVideoImporter = false
+    @State private var selectedVideoFilename: String = "No video selected"
 
     init(viewModel: InferenceViewModel) {
         _viewModel = StateObject(wrappedValue: viewModel)
@@ -213,8 +229,20 @@ struct ContentView: View {
                 .disabled(true)
                 .opacity(0.5)
 
+            HStack(spacing: 10) {
+                Button("Select Video (<=5s)") {
+                    showVideoImporter = true
+                }
+                .buttonStyle(.bordered)
+
+                Text(selectedVideoFilename)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            }
+
             Button("Run Cloud Translation") {
-                viewModel.runInference()
+                showVideoImporter = true
             }
             .buttonStyle(.borderedProminent)
             .disabled(viewModel.isLoading)
@@ -244,6 +272,39 @@ struct ContentView: View {
             Spacer()
         }
         .padding(20)
+        .fileImporter(
+            isPresented: $showVideoImporter,
+            allowedContentTypes: [UTType.movie, UTType.mpeg4Movie, UTType.quickTimeMovie],
+            allowsMultipleSelection: false
+        ) { result in
+            handleVideoSelection(result)
+        }
+    }
+
+    private func handleVideoSelection(_ result: Result<URL, Error>) {
+        switch result {
+        case .success(let url):
+            selectedVideoFilename = url.lastPathComponent
+            do {
+                let didStart = url.startAccessingSecurityScopedResource()
+                defer {
+                    if didStart { url.stopAccessingSecurityScopedResource() }
+                }
+
+                let values = try url.resourceValues(forKeys: [.fileSizeKey])
+                if let fileSize = values.fileSize, fileSize > 60_000_000 {
+                    viewModel.statusText = "Selected clip appears too large for <=5s requirement. Please choose a shorter clip."
+                    return
+                }
+
+                let data = try Data(contentsOf: url)
+                viewModel.runInference(uploadVideoData: data, uploadFilename: url.lastPathComponent)
+            } catch {
+                viewModel.statusText = "Failed to read selected video: \(error.localizedDescription)"
+            }
+        case .failure(let error):
+            viewModel.statusText = "Video selection canceled/failed: \(error.localizedDescription)"
+        }
     }
 }
 
