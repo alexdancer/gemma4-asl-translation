@@ -2,6 +2,7 @@ import SwiftUI
 import Foundation
 import Combine
 import UniformTypeIdentifiers
+import AVFoundation
 
 private let confidenceThreshold = 0.70
 private let latencySoftTargetMs = 500
@@ -289,6 +290,13 @@ struct ContentView: View {
                 let didStart = url.startAccessingSecurityScopedResource()
                 defer {
                     if didStart { url.stopAccessingSecurityScopedResource() }
+                }
+
+                let asset = AVURLAsset(url: url)
+                let seconds = CMTimeGetSeconds(asset.duration)
+                if seconds.isFinite, seconds > 5.0 {
+                    viewModel.statusText = String(format: "Selected clip is %.1fs (>5s). Please choose a shorter clip.", seconds)
+                    return
                 }
 
                 let values = try url.resourceValues(forKeys: [.fileSizeKey])
