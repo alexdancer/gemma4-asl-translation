@@ -22,6 +22,8 @@ from typing import Any, Callable
 from urllib import error as urlerror
 from urllib import request as urlrequest
 
+from src.telemetry_slo import TelemetryEvent, append_event
+
 Response = tuple[str, list[tuple[str, str]], bytes]
 CloudInferCallable = Callable[..., dict[str, Any]]
 
@@ -170,6 +172,16 @@ def translate_sign_wsgi_app(
             timeout_seconds=timeout_seconds,
         )
     except TimeoutError:
+        latency_ms = max(int((time.monotonic() - started) * 1000), 1)
+        append_event(
+            TelemetryEvent(
+                request_id=request_id,
+                latency_ms=latency_ms,
+                outcome="timeout",
+                confidence=0.0,
+                model_tag=os.environ.get("ASL_CLOUD_MODEL", "cactus-asl-v2"),
+            )
+        )
         return _error(
             "TIMEOUT",
             "Cloud inference timed out",
@@ -178,6 +190,16 @@ def translate_sign_wsgi_app(
             status="504 Gateway Timeout",
         )
     except Exception as exc:
+        latency_ms = max(int((time.monotonic() - started) * 1000), 1)
+        append_event(
+            TelemetryEvent(
+                request_id=request_id,
+                latency_ms=latency_ms,
+                outcome="upstream_failure",
+                confidence=0.0,
+                model_tag=os.environ.get("ASL_CLOUD_MODEL", "cactus-asl-v2"),
+            )
+        )
         return _error(
             "UPSTREAM_FAILURE",
             f"Cloud inference failed: {exc}",
@@ -193,6 +215,16 @@ def translate_sign_wsgi_app(
         "confidence": float(result["confidence"]),
         "latency_ms": int(result.get("latency_ms", (time.monotonic() - started) * 1000)),
     }
+
+    append_event(
+        TelemetryEvent(
+            request_id=payload["request_id"],
+            latency_ms=payload["latency_ms"],
+            outcome="success",
+            confidence=payload["confidence"],
+            model_tag=os.environ.get("ASL_CLOUD_MODEL", "cactus-asl-v2"),
+        )
+    )
 
     print(
         json.dumps(

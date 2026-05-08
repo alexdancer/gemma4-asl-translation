@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import uuid
+from pathlib import Path
 
 from src.cloud_translate_api import translate_sign_wsgi_app
 
@@ -30,7 +31,9 @@ def _call_app(method: str, path: str, content_type: str, body: bytes, request_id
     return status, dict(headers), json.loads(raw.decode("utf-8"))
 
 
-def test_translate_sign_accepts_multipart_and_returns_real_schema() -> None:
+def test_translate_sign_accepts_multipart_and_returns_real_schema(tmp_path: Path, monkeypatch) -> None:
+    telemetry_file = tmp_path / "cloud_telemetry.jsonl"
+    monkeypatch.setenv("ASL_TELEMETRY_PATH", str(telemetry_file))
     rid = str(uuid.uuid4())
 
     def fake_cloud_infer(*, video_bytes: bytes, filename: str, request_id: str, timeout_seconds: float):
@@ -66,6 +69,14 @@ def test_translate_sign_accepts_multipart_and_returns_real_schema() -> None:
         "confidence": 0.93,
         "latency_ms": 123,
     }
+
+    telemetry_lines = telemetry_file.read_text(encoding="utf-8").strip().splitlines()
+    assert len(telemetry_lines) == 1
+    event = json.loads(telemetry_lines[0])
+    assert event["request_id"] == rid
+    assert event["outcome"] == "success"
+    assert "video" not in event
+    assert "video_bytes" not in event
 
 
 def test_translate_sign_requires_multipart_video_field() -> None:
