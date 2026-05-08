@@ -20,7 +20,9 @@ final class InferenceViewModel: ObservableObject {
     @Published var latencyText: String = "—"
     @Published var runtimeModeText: String = "—"
     @Published var routeReasonText: String = "—"
+    @Published var requestIDText: String = "—"
     @Published var statusText: String = "Tap Run to start inference"
+    @Published var isLoading: Bool = false
     @Published var modelPathDebugText: String = "Model Path: unresolved"
 
     private let client: LocalCactusInferenceProviding
@@ -50,6 +52,8 @@ final class InferenceViewModel: ObservableObject {
     }
 
     private func runInference(clip: DemoClip, inputPath: InputPath, runtimeMode: RuntimeMode, strictProofMode: Bool) {
+        isLoading = true
+        statusText = "Uploading video and waiting for translation…"
         Task {
             modelPathDebugText = "Model Path: \(client.debugModelPathDescription())"
             let result = await client.infer(
@@ -59,6 +63,7 @@ final class InferenceViewModel: ObservableObject {
                 strictProofMode: strictProofMode
             )
             render(result: result)
+            isLoading = false
             await logger.record(result: result, strictProofMode: strictProofMode)
         }
     }
@@ -72,6 +77,7 @@ final class InferenceViewModel: ObservableObject {
         latencyText = "\(result.latencyMs) ms"
         runtimeModeText = result.runtimeMode
         routeReasonText = result.routeReason
+        requestIDText = result.requestID
 
         var pieces: [String] = [result.statusMessage]
         if result.latencyMs > latencySoftTargetMs {
@@ -211,6 +217,7 @@ struct ContentView: View {
                 viewModel.runInference()
             }
             .buttonStyle(.borderedProminent)
+            .disabled(viewModel.isLoading)
 
             Button("Real Proof Run") {
                 viewModel.runRealProofInference()
@@ -225,6 +232,7 @@ struct ContentView: View {
                 Text("Latency: \(viewModel.latencyText)")
                 Text("Runtime Mode: \(viewModel.runtimeModeText)")
                 Text("Route Reason: \(viewModel.routeReasonText)")
+                Text("Request ID: \(viewModel.requestIDText)")
                 Text(viewModel.modelPathDebugText)
                     .font(.subheadline)
                     .foregroundStyle(.secondary)

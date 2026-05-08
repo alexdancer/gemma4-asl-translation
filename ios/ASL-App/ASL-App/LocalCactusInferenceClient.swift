@@ -67,6 +67,7 @@ struct InferenceResult {
     let latencyMs: Int
     let runtimeMode: String
     let routeReason: String
+    let requestID: String
     let statusMessage: String
     let expectedGloss: String
     let success: Bool
@@ -297,6 +298,7 @@ final class LocalCactusInferenceClient: LocalCactusInferenceProviding {
                     latencyMs: decoded.latencyMs,
                     runtimeMode: "cloud",
                     routeReason: "cloud_endpoint_success",
+                    requestID: decoded.requestId ?? requestID,
                     statusMessage: "Cloud translation complete",
                     expectedGloss: (try? expectedGlossFor(clip: clip, inputPath: inputPath)) ?? "",
                     success: true
@@ -314,6 +316,7 @@ final class LocalCactusInferenceClient: LocalCactusInferenceProviding {
                 latencyMs: latency,
                 runtimeMode: "cloud",
                 routeReason: "cloud_endpoint_error",
+                requestID: failure?.requestId ?? requestID,
                 statusMessage: failure?.message ?? "Cloud request failed",
                 expectedGloss: (try? expectedGlossFor(clip: clip, inputPath: inputPath)) ?? "",
                 success: false
@@ -329,6 +332,7 @@ final class LocalCactusInferenceClient: LocalCactusInferenceProviding {
                 latencyMs: latency,
                 runtimeMode: "cloud",
                 routeReason: "cloud_endpoint_unreachable",
+                requestID: requestID,
                 statusMessage: "Cloud request failed: \(error.localizedDescription)",
                 expectedGloss: (try? expectedGlossFor(clip: clip, inputPath: inputPath)) ?? "",
                 success: false
