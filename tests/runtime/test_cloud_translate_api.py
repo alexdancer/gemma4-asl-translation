@@ -1,10 +1,11 @@
 from __future__ import annotations
 
+import base64
 import json
 import uuid
 from pathlib import Path
 
-from src.cloud_translate_api import translate_sign_wsgi_app
+from src.cloud_translate_api import _default_cloud_infer, translate_sign_wsgi_app
 
 
 BOUNDARY = "----WebKitFormBoundary7MA4YWxkTrZu0gW"
@@ -137,6 +138,78 @@ def test_translate_sign_returns_service_unavailable_and_request_id_on_cloud_fail
     assert payload["retryable"] is True
 
 
+def test_translate_sign_rejects_oversized_upload() -> None:
+    huge = b"x" * 60_000_001
+    status, _headers, payload = _call_app(
+        method="POST",
+        path="/v1/translate-sign",
+        content_type=f"multipart/form-data; boundary={BOUNDARY}",
+        body=_multipart_body(payload=huge),
+    )
+
+    assert status == "413 Payload Too Large"
+    assert payload["error_code"] == "PAYLOAD_TOO_LARGE"
+    assert payload["retryable"] is False
+
+
+def test_translate_sign_telemetry_failure_is_fail_open(monkeypatch) -> None:
+    def fake_cloud_infer(*, video_bytes: bytes, filename: str, request_id: str, timeout_seconds: float):
+        return {
+            "request_id": request_id,
+            "gloss": "HELLO",
+            "translation": "Hello",
+            "confidence": 0.93,
+            "latency_ms": 42,
+        }
+
+    def explode_append_event(_event):
+        raise OSError("disk full")
+
+    monkeypatch.setattr("src.cloud_translate_api.append_event", explode_append_event)
+
+    environ = {
+        "REQUEST_METHOD": "POST",
+        "PATH_INFO": "/v1/translate-sign",
+        "CONTENT_TYPE": f"multipart/form-data; boundary={BOUNDARY}",
+        "wsgi.input_body": _multipart_body(),
+        "cloud_infer_callable": fake_cloud_infer,
+    }
+    status, _headers, raw = translate_sign_wsgi_app(environ)
+    payload = json.loads(raw.decode("utf-8"))
+
+    assert status == "200 OK"
+    assert payload["gloss"] == "HELLO"
+
+
+def test_default_cloud_infer_sends_real_base64(monkeypatch) -> None:
+    captured = {}
+
+    class DummyResp:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+        def read(self):
+            return b'{"gloss":"HELLO","translation":"Hello","confidence":0.9,"latency_ms":12}'
+
+    def fake_urlopen(req, timeout):
+        captured["body"] = req.data
+        captured["timeout"] = timeout
+        return DummyResp()
+
+    monkeypatch.setenv("ASL_CLOUD_INFER_URL", "https://example.test/infer")
+    monkeypatch.setenv("ASL_CLOUD_API_KEY", "k")
+    monkeypatch.setattr("src.cloud_translate_api.urlrequest.urlopen", fake_urlopen)
+
+    _default_cloud_infer(video_bytes=b"abc", filename="clip.mov", request_id="rid-1", timeout_seconds=3.0)
+    body = json.loads(captured["body"].decode("utf-8"))
+
+    assert body["input"]["encoding"] == "base64"
+    assert body["input"]["video_base64"] == base64.b64encode(b"abc").decode("ascii")
+
+
 def test_translate_sign_unknown_path_uses_standard_error_schema() -> None:
     status, _headers, payload = _call_app(
         method="POST",
@@ -146,7 +219,8 @@ def test_translate_sign_unknown_path_uses_standard_error_schema() -> None:
     )
 
     assert status == "404 Not Found"
-    assert payload["error_code"] == "not_found"
+    assert payload["error_code"] == "NOT_FOUND"
     assert isinstance(payload["message"], str)
     assert isinstance(payload["request_id"], str)
     assert isinstance(payload["retryable"], bool)
+

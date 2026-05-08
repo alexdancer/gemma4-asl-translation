@@ -344,7 +344,7 @@ final class LocalCactusInferenceClient: LocalCactusInferenceProviding {
                     runtimeMode: "cloud",
                     routeReason: attempt > 0 ? "cloud_endpoint_retry_exhausted" : "cloud_endpoint_error",
                     requestID: failure?.requestId ?? requestID,
-                    statusMessage: mapCloudErrorMessage(errorCode: failure?.errorCode, fallbackMessage: failure?.message),
+                    statusMessage: mapCloudErrorMessage(errorCode: failure?.errorCode, fallbackMessage: failure?.message, exhaustedRetry: attempt >= maxRetryAttempts),
                     expectedGloss: (try? expectedGlossFor(clip: clip, inputPath: inputPath)) ?? "",
                     success: false
                 )
@@ -428,24 +428,26 @@ final class LocalCactusInferenceClient: LocalCactusInferenceProviding {
         var data = Data()
         let payload = uploadVideoData ?? ("demo-video-bytes-\(clip.fixtureKey)".data(using: .utf8) ?? Data())
         let filename = uploadFilename ?? "\(clip.fixtureKey).mov"
+        let ext = URL(fileURLWithPath: filename).pathExtension.lowercased()
+        let mimeType = ext == "mp4" ? "video/mp4" : "video/quicktime"
 
         data.append("--\(boundary)\r\n".data(using: .utf8)!)
         data.append("Content-Disposition: form-data; name=\"video\"; filename=\"\(filename)\"\r\n".data(using: .utf8)!)
-        data.append("Content-Type: video/quicktime\r\n\r\n".data(using: .utf8)!)
+        data.append("Content-Type: \(mimeType)\r\n\r\n".data(using: .utf8)!)
         data.append(payload)
         data.append("\r\n--\(boundary)--\r\n".data(using: .utf8)!)
 
         return data
     }
 
-    private func mapCloudErrorMessage(errorCode: String?, fallbackMessage: String?) -> String {
+    private func mapCloudErrorMessage(errorCode: String?, fallbackMessage: String?, exhaustedRetry: Bool) -> String {
         switch errorCode {
         case "CLIP_TOO_LONG":
             return "Clip is longer than 5 seconds. Please choose a shorter clip."
         case "UNSUPPORTED_FORMAT":
             return "Unsupported video format. Please use .mov or .mp4."
         case "RATE_LIMITED":
-            return "Service is busy. Retrying once automatically..."
+            return exhaustedRetry ? "Service is busy right now. Please try again shortly." : "Service is busy. Retrying once automatically..."
         case "TIMEOUT":
             return "Translation timed out. Please try again."
         default:

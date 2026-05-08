@@ -12,6 +12,8 @@ Behavior for slice #51:
 
 from __future__ import annotations
 
+import base64
+import hashlib
 import json
 import os
 import time
@@ -26,6 +28,20 @@ from src.telemetry_slo import TelemetryEvent, append_event
 
 Response = tuple[str, list[tuple[str, str]], bytes]
 CloudInferCallable = Callable[..., dict[str, Any]]
+MAX_UPLOAD_BYTES = 60_000_000
+
+
+def _safe_append_event(event: TelemetryEvent) -> None:
+    try:
+        append_event(event)
+    except Exception as exc:
+        print(json.dumps({"event": "telemetry_write_failed", "error": str(exc)}))
+
+
+def _redacted_filename_hint(filename: str) -> str:
+    digest = hashlib.sha256(filename.encode("utf-8", errors="ignore")).hexdigest()[:10]
+    ext = os.path.splitext(filename)[1].lower() or ".bin"
+    return f"file_{digest}{ext}"
 
 
 def _json_response(status: str, payload: dict[str, Any]) -> Response:
@@ -81,8 +97,8 @@ def _default_cloud_infer(*, video_bytes: bytes, filename: str, request_id: str, 
         "model": model_name,
         "input": {
             "filename": filename,
-            "video_base64": video_bytes.hex(),
-            "encoding": "hex",
+            "video_base64": base64.b64encode(video_bytes).decode("ascii"),
+            "encoding": "base64",
         },
     }
     body = json.dumps(payload).encode("utf-8")
@@ -139,7 +155,7 @@ def translate_sign_wsgi_app(
     path = environ.get("PATH_INFO", "")
 
     if method != "POST" or path != "/v1/translate-sign":
-        return _error("not_found", "Endpoint not found", request_id, retryable=False, status="404 Not Found")
+        return _error("NOT_FOUND", "Endpoint not found", request_id, retryable=False, status="404 Not Found")
 
     content_type = environ.get("CONTENT_TYPE", "")
     body = environ.get("wsgi.input_body", b"")
@@ -161,6 +177,8 @@ def translate_sign_wsgi_app(
     video_bytes, filename = video_part
     if not video_bytes:
         return _error("INVALID_VIDEO", "Uploaded video is empty", request_id, retryable=False)
+    if len(video_bytes) > MAX_UPLOAD_BYTES:
+        return _error("PAYLOAD_TOO_LARGE", "Uploaded video exceeds 60MB limit", request_id, retryable=False, status="413 Payload Too Large")
 
     cloud_infer = environ.get("cloud_infer_callable") or _default_cloud_infer
 
@@ -173,7 +191,7 @@ def translate_sign_wsgi_app(
         )
     except TimeoutError:
         latency_ms = max(int((time.monotonic() - started) * 1000), 1)
-        append_event(
+        _safe_append_event(
             TelemetryEvent(
                 request_id=request_id,
                 latency_ms=latency_ms,
@@ -190,8 +208,9 @@ def translate_sign_wsgi_app(
             status="504 Gateway Timeout",
         )
     except Exception as exc:
+        print(json.dumps({"event": "cloud_infer_error", "request_id": request_id, "error": str(exc)}))
         latency_ms = max(int((time.monotonic() - started) * 1000), 1)
-        append_event(
+        _safe_append_event(
             TelemetryEvent(
                 request_id=request_id,
                 latency_ms=latency_ms,
@@ -202,7 +221,7 @@ def translate_sign_wsgi_app(
         )
         return _error(
             "UPSTREAM_FAILURE",
-            f"Cloud inference failed: {exc}",
+            "Cloud inference request failed",
             request_id,
             retryable=True,
             status="503 Service Unavailable",
@@ -216,7 +235,7 @@ def translate_sign_wsgi_app(
         "latency_ms": int(result.get("latency_ms", (time.monotonic() - started) * 1000)),
     }
 
-    append_event(
+    _safe_append_event(
         TelemetryEvent(
             request_id=payload["request_id"],
             latency_ms=payload["latency_ms"],
@@ -231,7 +250,7 @@ def translate_sign_wsgi_app(
             {
                 "event": "translate_sign",
                 "request_id": payload["request_id"],
-                "filename": filename,
+                "filename_hint": _redacted_filename_hint(filename),
                 "bytes_received": len(video_bytes),
                 "latency_ms": payload["latency_ms"],
                 "status": "ok",
