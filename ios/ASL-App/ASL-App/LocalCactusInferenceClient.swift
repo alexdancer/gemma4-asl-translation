@@ -287,77 +287,105 @@ final class LocalCactusInferenceClient: LocalCactusInferenceProviding {
         _ = runtimeMode
         let started = Date()
         let requestID = UUID().uuidString
+        let maxRetryAttempts = 1
 
-        do {
-            let endpoint = URL(string: ProcessInfo.processInfo.environment["ASL_CLOUD_ENDPOINT"] ?? "http://127.0.0.1:8000/v1/translate-sign")!
-            var request = URLRequest(url: endpoint)
-            request.httpMethod = "POST"
-            request.timeoutInterval = 12
-            request.setValue(requestID, forHTTPHeaderField: "X-Request-ID")
+        for attempt in 0...maxRetryAttempts {
+            do {
+                let endpoint = URL(string: ProcessInfo.processInfo.environment["ASL_CLOUD_ENDPOINT"] ?? "http://127.0.0.1:8000/v1/translate-sign")!
+                var request = URLRequest(url: endpoint)
+                request.httpMethod = "POST"
+                request.timeoutInterval = 12
+                request.setValue(requestID, forHTTPHeaderField: "X-Request-ID")
 
-            let boundary = "Boundary-\(UUID().uuidString)"
-            request.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
-            request.httpBody = makeMultipartBody(
-                boundary: boundary,
-                clip: clip,
-                uploadVideoData: uploadVideoData,
-                uploadFilename: uploadFilename
-            )
+                let boundary = "Boundary-\(UUID().uuidString)"
+                request.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
+                request.httpBody = makeMultipartBody(
+                    boundary: boundary,
+                    clip: clip,
+                    uploadVideoData: uploadVideoData,
+                    uploadFilename: uploadFilename
+                )
 
-            let (data, response) = try await URLSession.shared.data(for: request)
-            let http = response as? HTTPURLResponse
+                let (data, response) = try await URLSession.shared.data(for: request)
+                let http = response as? HTTPURLResponse
 
-            if let http, (200..<300).contains(http.statusCode) {
-                let decoded = try JSONDecoder().decode(CloudSuccessResponse.self, from: data)
+                if let http, (200..<300).contains(http.statusCode) {
+                    let decoded = try JSONDecoder().decode(CloudSuccessResponse.self, from: data)
+                    return InferenceResult(
+                        clipID: clip.rawValue,
+                        inputPath: inputPath,
+                        gloss: decoded.gloss,
+                        translation: decoded.translation,
+                        confidence: decoded.confidence,
+                        latencyMs: decoded.latencyMs,
+                        runtimeMode: "cloud",
+                        routeReason: "cloud_endpoint_success",
+                        requestID: decoded.requestId ?? requestID,
+                        statusMessage: "Cloud translation complete",
+                        expectedGloss: (try? expectedGlossFor(clip: clip, inputPath: inputPath)) ?? "",
+                        success: true
+                    )
+                }
+
+                let failure = (try? JSONDecoder().decode(CloudErrorResponse.self, from: data))
+                let canRetry = (failure?.retryable ?? false) && attempt < maxRetryAttempts
+                if canRetry {
+                    continue
+                }
+
+                let latency = max(Int(Date().timeIntervalSince(started) * 1000), 1)
                 return InferenceResult(
                     clipID: clip.rawValue,
                     inputPath: inputPath,
-                    gloss: decoded.gloss,
-                    translation: decoded.translation,
-                    confidence: decoded.confidence,
-                    latencyMs: decoded.latencyMs,
+                    gloss: "",
+                    translation: "",
+                    confidence: 0,
+                    latencyMs: latency,
                     runtimeMode: "cloud",
-                    routeReason: "cloud_endpoint_success",
-                    requestID: decoded.requestId ?? requestID,
-                    statusMessage: "Cloud translation complete",
+                    routeReason: attempt > 0 ? "cloud_endpoint_retry_exhausted" : "cloud_endpoint_error",
+                    requestID: failure?.requestId ?? requestID,
+                    statusMessage: mapCloudErrorMessage(errorCode: failure?.errorCode, fallbackMessage: failure?.message),
                     expectedGloss: (try? expectedGlossFor(clip: clip, inputPath: inputPath)) ?? "",
-                    success: true
+                    success: false
+                )
+            } catch {
+                if attempt < maxRetryAttempts {
+                    continue
+                }
+
+                let latency = max(Int(Date().timeIntervalSince(started) * 1000), 1)
+                return InferenceResult(
+                    clipID: clip.rawValue,
+                    inputPath: inputPath,
+                    gloss: "",
+                    translation: "",
+                    confidence: 0,
+                    latencyMs: latency,
+                    runtimeMode: "cloud",
+                    routeReason: "cloud_endpoint_unreachable",
+                    requestID: requestID,
+                    statusMessage: "Could not connect to server. Please check network and try again.",
+                    expectedGloss: (try? expectedGlossFor(clip: clip, inputPath: inputPath)) ?? "",
+                    success: false
                 )
             }
-
-            let failure = (try? JSONDecoder().decode(CloudErrorResponse.self, from: data))
-            let latency = max(Int(Date().timeIntervalSince(started) * 1000), 1)
-            return InferenceResult(
-                clipID: clip.rawValue,
-                inputPath: inputPath,
-                gloss: "",
-                translation: "",
-                confidence: 0,
-                latencyMs: latency,
-                runtimeMode: "cloud",
-                routeReason: "cloud_endpoint_error",
-                requestID: failure?.requestId ?? requestID,
-                statusMessage: failure?.message ?? "Cloud request failed",
-                expectedGloss: (try? expectedGlossFor(clip: clip, inputPath: inputPath)) ?? "",
-                success: false
-            )
-        } catch {
-            let latency = max(Int(Date().timeIntervalSince(started) * 1000), 1)
-            return InferenceResult(
-                clipID: clip.rawValue,
-                inputPath: inputPath,
-                gloss: "",
-                translation: "",
-                confidence: 0,
-                latencyMs: latency,
-                runtimeMode: "cloud",
-                routeReason: "cloud_endpoint_unreachable",
-                requestID: requestID,
-                statusMessage: "Cloud request failed: \(error.localizedDescription)",
-                expectedGloss: (try? expectedGlossFor(clip: clip, inputPath: inputPath)) ?? "",
-                success: false
-            )
         }
+
+        let latency = max(Int(Date().timeIntervalSince(started) * 1000), 1)
+        return InferenceResult(
+            clipID: clip.rawValue,
+            inputPath: inputPath,
+            gloss: "",
+            translation: "",
+            confidence: 0,
+            latencyMs: latency,
+            runtimeMode: "cloud",
+            routeReason: "cloud_endpoint_retry_exhausted",
+            requestID: requestID,
+            statusMessage: "Request failed after retry. Please try again.",
+            expectedGloss: (try? expectedGlossFor(clip: clip, inputPath: inputPath)) ?? "",
+            success: false
+        )
     }
 
     private func expectedGlossFor(clip: DemoClip, inputPath: InputPath) throws -> String {
@@ -408,6 +436,21 @@ final class LocalCactusInferenceClient: LocalCactusInferenceProviding {
         data.append("\r\n--\(boundary)--\r\n".data(using: .utf8)!)
 
         return data
+    }
+
+    private func mapCloudErrorMessage(errorCode: String?, fallbackMessage: String?) -> String {
+        switch errorCode {
+        case "CLIP_TOO_LONG":
+            return "Clip is longer than 5 seconds. Please choose a shorter clip."
+        case "UNSUPPORTED_FORMAT":
+            return "Unsupported video format. Please use .mov or .mp4."
+        case "RATE_LIMITED":
+            return "Service is busy. Retrying once automatically..."
+        case "TIMEOUT":
+            return "Translation timed out. Please try again."
+        default:
+            return fallbackMessage ?? "Cloud request failed"
+        }
     }
 }
 
