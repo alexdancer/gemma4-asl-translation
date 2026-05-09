@@ -36,6 +36,11 @@ _EXPORTS = {
     "stratified_split": "src.data.create_splits",
     "run_video_pose_q64_smoke": "src.data.video_pose_q64_smoke",
     "verify_cached_pose_q64": "src.data.cached_pose_q64",
+    "SyntheticPhraseConfig": "src.data.synthetic_phrase_generator",
+    "SyntheticPhraseSample": "src.data.synthetic_phrase_generator",
+    "WordBoundary": "src.data.synthetic_phrase_generator",
+    "generate_synthetic_phrases": "src.data.synthetic_phrase_generator",
+    "summarize_synthetic_distribution": "src.data.synthetic_phrase_generator",
 }
 
 __all__ = sorted(_EXPORTS)

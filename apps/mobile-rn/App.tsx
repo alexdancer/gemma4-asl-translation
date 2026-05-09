@@ -28,7 +28,7 @@ type TranslateFailure = {
   retryable: boolean;
 };
 
-const DEFAULT_ENDPOINT = 'http://192.168.1.42:8000/v1/translate-sign';
+const DEFAULT_ENDPOINT = '';
 
 function App(): React.JSX.Element {
   const [endpoint, setEndpoint] = useState(DEFAULT_ENDPOINT);
@@ -42,6 +42,8 @@ function App(): React.JSX.Element {
   const [status, setStatus] = useState('Pick a <=5s video clip to translate.');
   const [result, setResult] = useState<TranslateSuccess | null>(null);
   const [failure, setFailure] = useState<TranslateFailure | null>(null);
+  const [isCheckingEndpoint, setIsCheckingEndpoint] = useState(false);
+  const [endpointCheckStatus, setEndpointCheckStatus] = useState('Not checked yet.');
 
   const canRun = useMemo(
     () => Boolean(selectedFile?.uri) && Boolean(endpoint.trim()) && !isUploading,
@@ -72,6 +74,28 @@ function App(): React.JSX.Element {
         return;
       }
       Alert.alert('Pick failed', error instanceof Error ? error.message : 'Unknown picker error');
+    }
+  };
+
+  const onCheckEndpoint = async () => {
+    const trimmed = endpoint.trim();
+    if (!trimmed) {
+      setEndpointCheckStatus('Enter a cloud endpoint first.');
+      return;
+    }
+
+    setIsCheckingEndpoint(true);
+    setEndpointCheckStatus('Checking endpoint...');
+
+    try {
+      const response = await fetch(trimmed, {method: 'GET'});
+      setEndpointCheckStatus(`Reachable (HTTP ${response.status}).`);
+    } catch (error) {
+      setEndpointCheckStatus(
+        `Unreachable: ${error instanceof Error ? error.message : 'Network request failed'}`,
+      );
+    } finally {
+      setIsCheckingEndpoint(false);
     }
   };
 
@@ -136,6 +160,22 @@ function App(): React.JSX.Element {
           placeholder="https://your-domain/v1/translate-sign"
           placeholderTextColor="#94a3b8"
         />
+
+        <TouchableOpacity
+          style={[styles.secondaryButton, isCheckingEndpoint && styles.disabledButton]}
+          onPress={onCheckEndpoint}
+          disabled={isCheckingEndpoint}>
+          {isCheckingEndpoint ? (
+            <ActivityIndicator color="#e2e8f0" />
+          ) : (
+            <Text style={styles.buttonText}>Check Cloud Connection</Text>
+          )}
+        </TouchableOpacity>
+
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>Endpoint check</Text>
+          <Text style={styles.cardValue}>{endpointCheckStatus}</Text>
+        </View>
 
         <TouchableOpacity style={styles.secondaryButton} onPress={onPickVideo}>
           <Text style={styles.buttonText}>Select Video</Text>

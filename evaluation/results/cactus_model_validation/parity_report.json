@@ -1,0 +1,217 @@
+{
+  "cactus_weights_path": "/Users/alex/Documents/ASL-project/sign-language-asl/checkpoints/gemma4_e4b_cactus_int4",
+  "manifest_path": "data/processed/exports/asl_unsloth_pose_train_q64_full_top50_manifest.json",
+  "real_cactus_parity_proven": false,
+  "records_path": "data/processed/exports/asl_unsloth_pose_train_q64_full_top50_test.jsonl",
+  "reference_checkpoint_path": "checkpoints/unsloth_gemma-4-E4B-it_q64_full_top50_baseline",
+  "reference_path": "evaluation/results/prompt_control_reference/reference.json",
+  "runtime_mode": "cactus_engine",
+  "samples": [
+    {
+      "cactus": {
+        "normalized_gloss": "enjoy",
+        "raw_model_output": "enjoy",
+        "valid_label": true
+      },
+      "cactus_response_metadata": {
+        "cloud_handoff": false,
+        "confidence": 0.8901,
+        "decode_tokens": 1,
+        "decode_tps": 0.0,
+        "function_calls": [],
+        "prefill_tokens": 1889,
+        "prefill_tps": 138.54,
+        "ram_usage_mb": 1459.26,
+        "segments": [],
+        "time_to_first_token_ms": 13634.63,
+        "total_time_ms": 13707.67,
+        "total_tokens": 1890
+      },
+      "correct_matches_expected": false,
+      "expected_gloss": "hearing",
+      "normalized_gloss_matches_python": false,
+      "python_reference": {
+        "normalized_gloss": "hearing",
+        "raw_model_output": "hearing",
+        "valid_label": true
+      },
+      "runtime_error": null,
+      "sample_id": "hearing_26986",
+      "selection_role": "smoke",
+      "valid_label_matches_python": true
+    },
+    {
+      "cactus": {
+        "normalized_gloss": "eye",
+        "raw_model_output": "eye",
+        "valid_label": false
+      },
+      "cactus_response_metadata": {
+        "cloud_handoff": false,
+        "confidence": 0.8484,
+        "decode_tokens": 1,
+        "decode_tps": 0.0,
+        "function_calls": [],
+        "prefill_tokens": 1958,
+        "prefill_tps": 134.93,
+        "ram_usage_mb": 612.98,
+        "segments": [],
+        "time_to_first_token_ms": 14511.63,
+        "total_time_ms": 14589.11,
+        "total_tokens": 1959
+      },
+      "correct_matches_expected": false,
+      "expected_gloss": "decide",
+      "normalized_gloss_matches_python": false,
+      "python_reference": {
+        "normalized_gloss": "decide",
+        "raw_model_output": "decide",
+        "valid_label": true
+      },
+      "runtime_error": null,
+      "sample_id": "decide_15040",
+      "selection_role": "demo",
+      "valid_label_matches_python": false
+    },
+    {
+      "cactus": {
+        "normalized_gloss": "computer",
+        "raw_model_output": "computer",
+        "valid_label": true
+      },
+      "cactus_response_metadata": {
+        "cloud_handoff": false,
+        "confidence": 0.8613,
+        "decode_tokens": 1,
+        "decode_tps": 0.0,
+        "function_calls": [],
+        "prefill_tokens": 1990,
+        "prefill_tps": 131.12,
+        "ram_usage_mb": 456.21,
+        "segments": [],
+        "time_to_first_token_ms": 15177.15,
+        "total_time_ms": 15260.5,
+        "total_tokens": 1991
+      },
+      "correct_matches_expected": false,
+      "expected_gloss": "center",
+      "normalized_gloss_matches_python": false,
+      "python_reference": {
+        "normalized_gloss": "center",
+        "raw_model_output": "center",
+        "valid_label": true
+      },
+      "runtime_error": null,
+      "sample_id": "center_09719",
+      "selection_role": "demo",
+      "valid_label_matches_python": true
+    },
+    {
+      "cactus": {
+        "normalized_gloss": "coffee",
+        "raw_model_output": "coffee",
+        "valid_label": true
+      },
+      "cactus_response_metadata": {
+        "cloud_handoff": false,
+        "confidence": 0.867,
+        "decode_tokens": 1,
+        "decode_tps": 0.0,
+        "function_calls": [],
+        "prefill_tokens": 2016,
+        "prefill_tps": 129.72,
+        "ram_usage_mb": 462.04,
+        "segments": [],
+        "time_to_first_token_ms": 15540.97,
+        "total_time_ms": 15625.05,
+        "total_tokens": 2017
+      },
+      "correct_matches_expected": false,
+      "expected_gloss": "clothes",
+      "normalized_gloss_matches_python": false,
+      "python_reference": {
+        "normalized_gloss": "clothes",
+        "raw_model_output": "clothes",
+        "valid_label": true
+      },
+      "runtime_error": null,
+      "sample_id": "clothes_11305",
+      "selection_role": "demo",
+      "valid_label_matches_python": true
+    },
+    {
+      "cactus": {
+        "normalized_gloss": "coffee",
+        "raw_model_output": "coffee",
+        "valid_label": true
+      },
+      "cactus_response_metadata": {
+        "cloud_handoff": false,
+        "confidence": 0.8759,
+        "decode_tokens": 1,
+        "decode_tps": 0.0,
+        "function_calls": [],
+        "prefill_tokens": 2020,
+        "prefill_tps": 128.57,
+        "ram_usage_mb": 460.43,
+        "segments": [],
+        "time_to_first_token_ms": 15711.48,
+        "total_time_ms": 15794.56,
+        "total_tokens": 2021
+      },
+      "correct_matches_expected": false,
+      "expected_gloss": "backpack",
+      "normalized_gloss_matches_python": false,
+      "python_reference": {
+        "normalized_gloss": "backpack",
+        "raw_model_output": "backpack",
+        "valid_label": true
+      },
+      "runtime_error": null,
+      "sample_id": "backpack_04627",
+      "selection_role": "demo",
+      "valid_label_matches_python": true
+    },
+    {
+      "cactus": {
+        "normalized_gloss": "need",
+        "raw_model_output": "need",
+        "valid_label": true
+      },
+      "cactus_response_metadata": {
+        "cloud_handoff": false,
+        "confidence": 0.8733,
+        "decode_tokens": 1,
+        "decode_tps": 0.0,
+        "function_calls": [],
+        "prefill_tokens": 2053,
+        "prefill_tps": 127.94,
+        "ram_usage_mb": 444.6,
+        "segments": [],
+        "time_to_first_token_ms": 16046.46,
+        "total_time_ms": 16126.48,
+        "total_tokens": 2054
+      },
+      "correct_matches_expected": false,
+      "expected_gloss": "hot",
+      "normalized_gloss_matches_python": false,
+      "python_reference": {
+        "normalized_gloss": "hot",
+        "raw_model_output": "hot",
+        "valid_label": true
+      },
+      "runtime_error": null,
+      "sample_id": "hot_28122",
+      "selection_role": "demo",
+      "valid_label_matches_python": true
+    }
+  ],
+  "scope": "cactus_prompt_control_parity",
+  "summary": {
+    "all_matches": false,
+    "match_count": 0,
+    "mismatch_count": 6,
+    "runtime_error_count": 0,
+    "sample_count": 6
+  }
+}

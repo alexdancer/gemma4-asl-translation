@@ -1,0 +1,6 @@
+{"request_id": "7b30a2ff-d3f6-4e1f-ad5d-984d952a15d8", "latency_ms": 1, "outcome": "timeout", "confidence": 0.0, "model_tag": "cactus-asl-v2"}
+{"request_id": "0e7c0867-633e-4300-b303-70fff01387b8", "latency_ms": 1, "outcome": "upstream_failure", "confidence": 0.0, "model_tag": "cactus-asl-v2"}
+{"request_id": "5a2627bb-1467-47cf-b9c6-d463bc183d95", "latency_ms": 1, "outcome": "timeout", "confidence": 0.0, "model_tag": "cactus-asl-v2"}
+{"request_id": "8d0c304a-fce6-40ce-9115-129a52898503", "latency_ms": 1, "outcome": "upstream_failure", "confidence": 0.0, "model_tag": "cactus-asl-v2"}
+{"request_id": "5faeb1bb-4f65-479f-bb85-a105fedf9a01", "latency_ms": 1, "outcome": "timeout", "confidence": 0.0, "model_tag": "cactus-asl-v2"}
+{"request_id": "ef50f267-0145-43d1-b4d2-09d41e43da21", "latency_ms": 1, "outcome": "upstream_failure", "confidence": 0.0, "model_tag": "cactus-asl-v2"}

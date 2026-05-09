@@ -43,6 +43,14 @@ cactus_export/
 evaluation/results/*_smoke/
 evaluation/results/prerecorded_q64_demo/
 
+# checkpoints
+checkpoints/
+
+# Large iOS model/runtime artifacts
+ios/ASL-App/ASL-App/cactus-model/
+ios/ASL-App/Frameworks/
+ios/ASL-App/cactus-ios.xcframework/
+
 issues/
 ralph/
 checkpoints/base_gemma4_e4b/

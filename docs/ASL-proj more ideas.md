@@ -1,0 +1,4 @@
+- I want to make it so that the model can translate multiple words in a video. So first, I want to test the interactions on the top-50 set and have the model guess multiple words in one go (hello thanks yes).
+- Once we got that figured out, we then need to go focus on video frame extraction from videos when the user is inputting a video with the app. We already have the pose extraction pipeline. The question is whether we reuse it with React-Native like with the Expo library or another repo that I found (read the repo https://github.com/mgcrea/react-native-video-frames).
+	- We are going to need to include time stamps, which is included at least in the repo
+	- The process should be something like this from the app (can change in the future): Record/Input a video -> Extract Frames -> Pose Extraction -> send to the model -> Inference -> return answer

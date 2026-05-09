@@ -282,33 +282,42 @@ struct ContentView: View {
         }
     }
 
-    private func handleVideoSelection(_ result: Result<URL, Error>) {
+    private func handleVideoSelection(_ result: Result<[URL], Error>) {
         switch result {
-        case .success(let url):
+        case .success(let urls):
+            guard let url = urls.first else {
+                viewModel.statusText = "No video selected."
+                return
+            }
+
             selectedVideoFilename = url.lastPathComponent
-            do {
-                let didStart = url.startAccessingSecurityScopedResource()
-                defer {
-                    if didStart { url.stopAccessingSecurityScopedResource() }
-                }
+            Task { @MainActor in
+                do {
+                    let didStart = url.startAccessingSecurityScopedResource()
+                    defer {
+                        if didStart { url.stopAccessingSecurityScopedResource() }
+                    }
 
-                let asset = AVURLAsset(url: url)
-                let seconds = CMTimeGetSeconds(asset.duration)
-                if seconds.isFinite, seconds > 5.0 {
-                    viewModel.statusText = String(format: "Selected clip is %.1fs (>5s). Please choose a shorter clip.", seconds)
-                    return
-                }
+                    let asset = AVURLAsset(url: url)
+                    // Load duration using modern async API to avoid deprecated `duration` access
+                    let duration = try await asset.load(.duration)
+                    let seconds = CMTimeGetSeconds(duration)
+                    if seconds.isFinite, seconds > 5.0 {
+                        viewModel.statusText = String(format: "Selected clip is %.1fs (>5s). Please choose a shorter clip.", seconds)
+                        return
+                    }
 
-                let values = try url.resourceValues(forKeys: [.fileSizeKey])
-                if let fileSize = values.fileSize, fileSize > 60_000_000 {
-                    viewModel.statusText = "Selected clip appears too large for <=5s requirement. Please choose a shorter clip."
-                    return
-                }
+                    let values = try url.resourceValues(forKeys: [.fileSizeKey])
+                    if let fileSize = values.fileSize, fileSize > 60_000_000 {
+                        viewModel.statusText = "Selected clip appears too large for <=5s requirement. Please choose a shorter clip."
+                        return
+                    }
 
-                let data = try Data(contentsOf: url)
-                viewModel.runInference(uploadVideoData: data, uploadFilename: url.lastPathComponent)
-            } catch {
-                viewModel.statusText = "Failed to read selected video: \(error.localizedDescription)"
+                    let data = try Data(contentsOf: url)
+                    viewModel.runInference(uploadVideoData: data, uploadFilename: url.lastPathComponent)
+                } catch {
+                    viewModel.statusText = "Failed to read selected video: \(error.localizedDescription)"
+                }
             }
         case .failure(let error):
             viewModel.statusText = "Video selection canceled/failed: \(error.localizedDescription)"

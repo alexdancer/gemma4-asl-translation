@@ -6,8 +6,30 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		FA6F26982FAD770B00EF14DD /* cactus-model in Resources */ = {isa = PBXBuildFile; fileRef = FA6F26972FAD770A00EF14DD /* cactus-model */; };
+		FABC1BB12FAD486B00F04919 /* Frameworks/cactus-ios.xcframework in Frameworks */ = {isa = PBXBuildFile; fileRef = FABC1BAF2FAD486400F04919 /* Frameworks/cactus-ios.xcframework */; };
+		FABC1BB22FAD486B00F04919 /* Frameworks/cactus-ios.xcframework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = FABC1BAF2FAD486400F04919 /* Frameworks/cactus-ios.xcframework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+/* End PBXBuildFile section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		FABC1BAC2FAD2FDE00F04919 /* Embed Frameworks */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 10;
+			files = (
+				FABC1BB22FAD486B00F04919 /* Frameworks/cactus-ios.xcframework in Embed Frameworks */,
+			);
+			name = "Embed Frameworks";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
 /* Begin PBXFileReference section */
+		FA6F26972FAD770A00EF14DD /* cactus-model */ = {isa = PBXFileReference; lastKnownFileType = folder; name = "cactus-model"; path = "ASL-App/cactus-model"; sourceTree = "<group>"; };
 		FABC1B792FAB7C1F00F04919 /* ASL-App.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "ASL-App.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		FABC1BAF2FAD486400F04919 /* Frameworks/cactus-ios.xcframework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcframework; path = "Frameworks/cactus-ios.xcframework"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -23,6 +45,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				FABC1BB12FAD486B00F04919 /* Frameworks/cactus-ios.xcframework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -32,8 +55,10 @@
 		FABC1B702FAB7C1F00F04919 = {
 			isa = PBXGroup;
 			children = (
+				FA6F26972FAD770A00EF14DD /* cactus-model */,
 				FABC1B7B2FAB7C1F00F04919 /* ASL-App */,
 				FABC1B7A2FAB7C1F00F04919 /* Products */,
+				FABC1BAF2FAD486400F04919 /* Frameworks/cactus-ios.xcframework */,
 			);
 			sourceTree = "<group>";
 		};
@@ -55,6 +80,7 @@
 				FABC1B752FAB7C1F00F04919 /* Sources */,
 				FABC1B762FAB7C1F00F04919 /* Frameworks */,
 				FABC1B772FAB7C1F00F04919 /* Resources */,
+				FABC1BAC2FAD2FDE00F04919 /* Embed Frameworks */,
 			);
 			buildRules = (
 			);
@@ -109,6 +135,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				FA6F26982FAD770B00EF14DD /* cactus-model in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -246,6 +273,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = LV4HTK7PJK;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
@@ -288,6 +316,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = LV4HTK7PJK;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;

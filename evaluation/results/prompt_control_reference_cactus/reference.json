@@ -1,0 +1,65 @@
+{
+  "checkpoint_path": "checkpoints/unsloth_gemma-4-E4B-it_q64_full_top50_baseline",
+  "generated_at": "2026-05-07T16:25:26+00:00",
+  "inference_contract": "Prompt-control free generation only; constrained Top-50 inference is not part of this fixture.",
+  "manifest_path": "data/processed/exports/asl_unsloth_pose_train_q64_full_top50_manifest.json",
+  "metadata": {
+    "demo_count": 3,
+    "evaluated_row_count": 30,
+    "requested_demo_count": 3,
+    "selected_count": 4,
+    "smoke_count": 1
+  },
+  "mode": "prompt_control_free_generation",
+  "records": [
+    {
+      "correct": true,
+      "expected_gloss": "need",
+      "inference_mode": "cactus_engine",
+      "normalized_gloss": "need",
+      "raw_model_output": "need",
+      "sample_id": "need_37891",
+      "selection_role": "smoke",
+      "valid_label": true
+    },
+    {
+      "correct": true,
+      "expected_gloss": "like",
+      "inference_mode": "cactus_engine",
+      "normalized_gloss": "like",
+      "raw_model_output": "like",
+      "sample_id": "like_33277",
+      "selection_role": "demo",
+      "valid_label": true
+    },
+    {
+      "correct": true,
+      "expected_gloss": "blue",
+      "inference_mode": "cactus_engine",
+      "normalized_gloss": "blue",
+      "raw_model_output": "blue",
+      "sample_id": "blue_06840",
+      "selection_role": "demo",
+      "valid_label": true
+    },
+    {
+      "correct": true,
+      "expected_gloss": "drink",
+      "inference_mode": "cactus_engine",
+      "normalized_gloss": "drink",
+      "raw_model_output": "drink",
+      "sample_id": "drink_17728",
+      "selection_role": "demo",
+      "valid_label": true
+    }
+  ],
+  "records_path": "data/processed/exports/asl_unsloth_pose_train_q64_full_top50_test.jsonl",
+  "sample_ids": [
+    "need_37891",
+    "like_33277",
+    "blue_06840",
+    "drink_17728"
+  ],
+  "schema_version": 1,
+  "scope": "prompt_control_reference_fixture"
+}
