@@ -2,16 +2,24 @@ from __future__ import annotations
 
 import base64
 import json
+import os
 from types import SimpleNamespace
 import uuid
 from pathlib import Path
 
+from src import cloud_translate_api as cloud_translate_api_module
 from src.cloud_translate_api import CloudInferError, _default_cloud_infer, translate_sign_wsgi_app
 from src.frame_extraction import FrameExtractionError
 from src.video_ingest import CanonicalVideoProfile, VideoProbeResult
 
 
 BOUNDARY = "----WebKitFormBoundary7MA4YWxkTrZu0gW"
+TEST_API_KEY = "test-key"
+os.environ.setdefault("ASL_V1_API_KEYS", TEST_API_KEY)
+
+
+def setup_function(_function) -> None:
+    cloud_translate_api_module._RATE_LIMIT_HITS_BY_KEY.clear()
 
 
 def _canonical_probe() -> VideoProbeResult:
@@ -49,6 +57,7 @@ def _base_environ(*, method: str = "POST", path: str = "/v1/translate-sign", con
         "PATH_INFO": path,
         "CONTENT_TYPE": content_type or f"multipart/form-data; boundary={BOUNDARY}",
         "wsgi.input_body": body if body is not None else _multipart_body(),
+        "HTTP_AUTHORIZATION": f"Bearer {TEST_API_KEY}",
         "video_ingest_callable": _default_video_ingest,
         "frame_extractor_callable": _default_frame_extractor,
         "pose_pipeline_callable": _default_pose_pipeline,
@@ -95,6 +104,7 @@ def test_translate_sign_accepts_multipart_and_returns_real_schema(tmp_path: Path
         "PATH_INFO": "/v1/translate-sign",
         "CONTENT_TYPE": f"multipart/form-data; boundary={BOUNDARY}",
         "wsgi.input_body": _multipart_body(),
+        "HTTP_AUTHORIZATION": f"Bearer {TEST_API_KEY}",
         "HTTP_X_REQUEST_ID": rid,
         "cloud_infer_callable": fake_cloud_infer,
         "video_ingest_callable": lambda video_bytes, _filename: (
@@ -158,6 +168,7 @@ def test_translate_sign_returns_retryable_timeout_error_when_cloud_times_out() -
         "PATH_INFO": "/v1/translate-sign",
         "CONTENT_TYPE": f"multipart/form-data; boundary={BOUNDARY}",
         "wsgi.input_body": _multipart_body(),
+        "HTTP_AUTHORIZATION": f"Bearer {TEST_API_KEY}",
         "cloud_infer_callable": fake_timeout,
         "video_ingest_callable": lambda video_bytes, _filename: (
             _canonical_probe(),
@@ -189,6 +200,7 @@ def test_translate_sign_returns_service_unavailable_and_request_id_on_cloud_fail
         "PATH_INFO": "/v1/translate-sign",
         "CONTENT_TYPE": f"multipart/form-data; boundary={BOUNDARY}",
         "wsgi.input_body": _multipart_body(),
+        "HTTP_AUTHORIZATION": f"Bearer {TEST_API_KEY}",
         "HTTP_X_REQUEST_ID": rid,
         "cloud_infer_callable": fake_failure,
         "video_ingest_callable": lambda video_bytes, _filename: (
@@ -245,6 +257,7 @@ def test_translate_sign_telemetry_failure_is_fail_open(monkeypatch) -> None:
         "PATH_INFO": "/v1/translate-sign",
         "CONTENT_TYPE": f"multipart/form-data; boundary={BOUNDARY}",
         "wsgi.input_body": _multipart_body(),
+        "HTTP_AUTHORIZATION": f"Bearer {TEST_API_KEY}",
         "cloud_infer_callable": fake_cloud_infer,
         "video_ingest_callable": lambda video_bytes, _filename: (
             _canonical_probe(),
@@ -425,6 +438,7 @@ def test_translate_sign_rejects_video_longer_than_10_seconds() -> None:
         "PATH_INFO": "/v1/translate-sign",
         "CONTENT_TYPE": f"multipart/form-data; boundary={BOUNDARY}",
         "wsgi.input_body": _multipart_body(),
+        "HTTP_AUTHORIZATION": f"Bearer {TEST_API_KEY}",
         "video_ingest_callable": long_duration,
         "frame_extractor_callable": _default_frame_extractor,
         "pose_pipeline_callable": _default_pose_pipeline,
@@ -466,6 +480,7 @@ def test_translate_sign_emits_video_ingest_metadata_and_uses_canonical_bytes() -
         "PATH_INFO": "/v1/translate-sign",
         "CONTENT_TYPE": f"multipart/form-data; boundary={BOUNDARY}",
         "wsgi.input_body": _multipart_body(),
+        "HTTP_AUTHORIZATION": f"Bearer {TEST_API_KEY}",
         "cloud_infer_callable": fake_cloud_infer,
         "video_ingest_callable": fake_process,
         "frame_extractor_callable": _default_frame_extractor,
@@ -491,6 +506,7 @@ def test_translate_sign_returns_structured_error_for_unreadable_video() -> None:
         "PATH_INFO": "/v1/translate-sign",
         "CONTENT_TYPE": f"multipart/form-data; boundary={BOUNDARY}",
         "wsgi.input_body": _multipart_body(),
+        "HTTP_AUTHORIZATION": f"Bearer {TEST_API_KEY}",
         "video_ingest_callable": fake_process,
         "frame_extractor_callable": _default_frame_extractor,
         "pose_pipeline_callable": _default_pose_pipeline,
@@ -516,6 +532,7 @@ def test_translate_sign_returns_422_frame_count_exceeded_details() -> None:
         "PATH_INFO": "/v1/translate-sign",
         "CONTENT_TYPE": f"multipart/form-data; boundary={BOUNDARY}",
         "wsgi.input_body": _multipart_body(),
+        "HTTP_AUTHORIZATION": f"Bearer {TEST_API_KEY}",
         "video_ingest_callable": _default_video_ingest,
         "frame_extractor_callable": fake_frame_extractor,
         "pose_pipeline_callable": _default_pose_pipeline,
@@ -586,4 +603,91 @@ def test_translate_sign_returns_502_for_malformed_upstream_payload() -> None:
     assert status == "502 Bad Gateway"
     assert payload["error_code"] == "INFERENCE_UPSTREAM_MALFORMED"
     assert payload["retryable"] is True
+
+
+def test_translate_sign_rejects_missing_or_invalid_api_key(monkeypatch) -> None:
+    monkeypatch.setenv("ASL_V1_API_KEYS", "valid-key")
+    monkeypatch.delenv("ASL_V1_API_KEYS_NEXT", raising=False)
+
+    environ = _base_environ()
+    environ.pop("HTTP_AUTHORIZATION", None)
+    status, _headers, raw = translate_sign_wsgi_app(environ)
+    payload = json.loads(raw.decode("utf-8"))
+    assert status == "401 Unauthorized"
+    assert payload["error_code"] == "UNAUTHORIZED"
+    assert payload["retryable"] is False
+
+    environ = _base_environ()
+    environ["HTTP_AUTHORIZATION"] = "Bearer wrong-key"
+    status, _headers, raw = translate_sign_wsgi_app(environ)
+    payload = json.loads(raw.decode("utf-8"))
+    assert status == "401 Unauthorized"
+    assert payload["error_code"] == "UNAUTHORIZED"
+
+
+def test_translate_sign_accepts_next_rotation_key(monkeypatch) -> None:
+    monkeypatch.setenv("ASL_V1_API_KEYS", "current-key")
+    monkeypatch.setenv("ASL_V1_API_KEYS_NEXT", "next-key")
+
+    environ = _base_environ()
+    environ["HTTP_AUTHORIZATION"] = "Bearer next-key"
+    environ["cloud_infer_callable"] = lambda **kwargs: {
+        "request_id": kwargs["request_id"],
+        "translation": "Hello",
+        "confidence": 0.9,
+        "latency_ms": 5,
+    }
+    status, _headers, raw = translate_sign_wsgi_app(environ)
+    payload = json.loads(raw.decode("utf-8"))
+
+    assert status == "200 OK"
+    assert payload["prediction"] == "Hello"
+
+
+def test_translate_sign_rate_limits_per_key(monkeypatch) -> None:
+    monkeypatch.setenv("ASL_V1_API_KEYS", "rl-key")
+    monkeypatch.setenv("ASL_V1_RATE_LIMIT_REQUESTS", "1")
+    monkeypatch.setenv("ASL_V1_RATE_LIMIT_WINDOW_SECONDS", "60")
+
+    environ = _base_environ()
+    environ["HTTP_AUTHORIZATION"] = "Bearer rl-key"
+    environ["cloud_infer_callable"] = lambda **kwargs: {
+        "request_id": kwargs["request_id"],
+        "translation": "Hello",
+        "confidence": 0.9,
+        "latency_ms": 5,
+    }
+
+    status, _headers, raw = translate_sign_wsgi_app(environ)
+    payload = json.loads(raw.decode("utf-8"))
+    assert status == "200 OK"
+    assert payload["prediction"] == "Hello"
+
+    status, _headers, raw = translate_sign_wsgi_app(environ)
+    payload = json.loads(raw.decode("utf-8"))
+    assert status == "429 Too Many Requests"
+    assert payload["error_code"] == "RATE_LIMITED"
+    assert payload["retryable"] is True
+    assert payload["details"]["limit"] == 1
+    assert payload["details"]["window_seconds"] == 60
+    assert payload["details"]["retry_after_seconds"] >= 1
+
+
+def test_translate_sign_accepts_x_api_key_header(monkeypatch) -> None:
+    monkeypatch.setenv("ASL_V1_API_KEYS", "x-key")
+
+    environ = _base_environ()
+    environ.pop("HTTP_AUTHORIZATION", None)
+    environ["HTTP_X_API_KEY"] = "x-key"
+    environ["cloud_infer_callable"] = lambda **kwargs: {
+        "request_id": kwargs["request_id"],
+        "translation": "Hello",
+        "confidence": 0.9,
+        "latency_ms": 5,
+    }
+
+    status, _headers, raw = translate_sign_wsgi_app(environ)
+    payload = json.loads(raw.decode("utf-8"))
+    assert status == "200 OK"
+    assert payload["prediction"] == "Hello"
 

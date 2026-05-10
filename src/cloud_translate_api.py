@@ -17,6 +17,7 @@ import hashlib
 import inspect
 import json
 import os
+import threading
 import time
 import uuid
 from dataclasses import dataclass
@@ -39,6 +40,11 @@ from src.pose_handoff import PosePipelineError, run_pose_extraction_pipeline
 Response = tuple[str, list[tuple[str, str]], bytes]
 CloudInferCallable = Callable[..., dict[str, Any]]
 MAX_UPLOAD_BYTES = 60_000_000
+DEFAULT_RATE_LIMIT_REQUESTS = 60
+DEFAULT_RATE_LIMIT_WINDOW_SECONDS = 60
+
+_RATE_LIMIT_LOCK = threading.Lock()
+_RATE_LIMIT_HITS_BY_KEY: dict[str, list[float]] = {}
 
 
 class CloudInferError(RuntimeError):
@@ -119,6 +125,68 @@ def _build_request_context(environ: dict[str, Any]) -> RequestContext:
         content_type=environ.get("CONTENT_TYPE", ""),
         body=environ.get("wsgi.input_body", b""),
     )
+
+
+def _parse_positive_int_env(name: str, default: int) -> int:
+    raw = os.environ.get(name)
+    if raw is None:
+        return default
+    try:
+        parsed = int(raw)
+    except ValueError:
+        return default
+    return parsed if parsed > 0 else default
+
+
+def _load_allowed_api_keys() -> set[str]:
+    """Load active API keys from env (current + next rotation set)."""
+
+    key_sets = [os.environ.get("ASL_V1_API_KEYS", ""), os.environ.get("ASL_V1_API_KEYS_NEXT", "")]
+    allowed: set[str] = set()
+    for key_set in key_sets:
+        for key in key_set.split(","):
+            normalized = key.strip()
+            if normalized:
+                allowed.add(normalized)
+    return allowed
+
+
+def _extract_api_key(environ: dict[str, Any]) -> str | None:
+    """Extract API key from Authorization Bearer token or X-API-Key header."""
+
+    auth_header = str(environ.get("HTTP_AUTHORIZATION") or "").strip()
+    if auth_header.lower().startswith("bearer "):
+        token = auth_header[7:].strip()
+        if token:
+            return token
+
+    x_api_key = str(environ.get("HTTP_X_API_KEY") or "").strip()
+    return x_api_key or None
+
+
+def _check_rate_limit(*, api_key: str, now: float) -> tuple[bool, dict[str, Any] | None]:
+    """Enforce lightweight per-key rate limiting with an in-memory sliding window."""
+
+    limit = _parse_positive_int_env("ASL_V1_RATE_LIMIT_REQUESTS", DEFAULT_RATE_LIMIT_REQUESTS)
+    window_seconds = _parse_positive_int_env("ASL_V1_RATE_LIMIT_WINDOW_SECONDS", DEFAULT_RATE_LIMIT_WINDOW_SECONDS)
+    window_floor = now - float(window_seconds)
+
+    with _RATE_LIMIT_LOCK:
+        hits = _RATE_LIMIT_HITS_BY_KEY.get(api_key, [])
+        hits = [ts for ts in hits if ts >= window_floor]
+        if len(hits) >= limit:
+            retry_after_seconds = max(1, int(window_seconds - (now - min(hits))))
+            _RATE_LIMIT_HITS_BY_KEY[api_key] = hits
+            return False, {
+                "limit": limit,
+                "window_seconds": window_seconds,
+                "retry_after_seconds": retry_after_seconds,
+            }
+
+        hits.append(now)
+        _RATE_LIMIT_HITS_BY_KEY[api_key] = hits
+
+    return True, None
 
 
 def _build_video_ingest_payload(
@@ -463,6 +531,28 @@ def translate_sign_wsgi_app(
     elapsed = time.monotonic() - context.started
     if elapsed > timeout_seconds:
         return _error("TIMEOUT", "Request exceeded timeout", context.request_id, retryable=True, status="504 Gateway Timeout")
+
+    allowed_keys = _load_allowed_api_keys()
+    presented_key = _extract_api_key(environ)
+    if not allowed_keys or not presented_key or presented_key not in allowed_keys:
+        return _error(
+            "UNAUTHORIZED",
+            "Missing or invalid API key",
+            context.request_id,
+            retryable=False,
+            status="401 Unauthorized",
+        )
+
+    allowed_request, rate_limit_details = _check_rate_limit(api_key=presented_key, now=time.monotonic())
+    if not allowed_request:
+        return _error(
+            "RATE_LIMITED",
+            "Rate limit exceeded for API key",
+            context.request_id,
+            retryable=True,
+            status="429 Too Many Requests",
+            details=rate_limit_details,
+        )
 
     video_part = _extract_video_part(context.content_type, context.body)
     if video_part is None:

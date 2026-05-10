@@ -103,3 +103,24 @@ This document captures locked product/architecture decisions and the execution c
 7. ASL-AUTH-01 — API key auth + rotation + rate limiting.
 8. ASL-CACTUS-01 — Cactus cloud integration + response mapping.
 9. ASL-RN-01 — RN upload + stage UI + polling integration.
+
+## API Key Rotation Runbook (ASL-AUTH-01)
+
+- Auth headers accepted by backend:
+  - `Authorization: Bearer <key>` (primary)
+  - `X-API-Key: <key>` (compatibility)
+- Env keys:
+  - `ASL_V1_API_KEYS` — current active keys (comma-separated)
+  - `ASL_V1_API_KEYS_NEXT` — next keys during rotation window (comma-separated, optional)
+  - `ASL_V1_RATE_LIMIT_REQUESTS` — per-key request cap in window (default `60`)
+  - `ASL_V1_RATE_LIMIT_WINDOW_SECONDS` — window size in seconds (default `60`)
+
+Rotation steps:
+1. Generate new key(s), set them in `ASL_V1_API_KEYS_NEXT`, keep old keys in `ASL_V1_API_KEYS`.
+2. Roll out app/backend clients to start using new key(s).
+3. Promote new key(s) into `ASL_V1_API_KEYS`.
+4. Remove old keys and clear `ASL_V1_API_KEYS_NEXT`.
+
+Error semantics:
+- Invalid/missing key -> `401 UNAUTHORIZED` (non-retryable)
+- Per-key limit exceeded -> `429 RATE_LIMITED` (retryable, includes `details.retry_after_seconds`)
