@@ -26,6 +26,12 @@ from urllib import error as urlerror
 from urllib import request as urlrequest
 
 from src.telemetry_slo import TelemetryEvent, append_event
+from src.frame_extraction import (
+    FrameExtractionError,
+    MAX_FRAMES,
+    OVERFLOW_POLICY,
+    extract_frames_from_canonical_video,
+)
 from src.video_ingest import VideoIngestError, process_uploaded_video
 
 Response = tuple[str, list[tuple[str, str]], bytes]
@@ -60,16 +66,23 @@ def _json_response(status: str, payload: dict[str, Any]) -> Response:
     return status, [("Content-Type", "application/json")], json.dumps(payload).encode("utf-8")
 
 
-def _error(error_code: str, message: str, request_id: str, retryable: bool, status: str = "400 Bad Request") -> Response:
-    return _json_response(
-        status,
-        {
-            "error_code": error_code,
-            "message": message,
-            "request_id": request_id,
-            "retryable": retryable,
-        },
-    )
+def _error(
+    error_code: str,
+    message: str,
+    request_id: str,
+    retryable: bool,
+    status: str = "400 Bad Request",
+    details: dict[str, Any] | None = None,
+) -> Response:
+    payload = {
+        "error_code": error_code,
+        "message": message,
+        "request_id": request_id,
+        "retryable": retryable,
+    }
+    if details:
+        payload["details"] = details
+    return _json_response(status, payload)
 
 
 def _build_request_context(environ: dict[str, Any]) -> RequestContext:
@@ -131,6 +144,7 @@ def _log_translate_sign_event(
     normalization_applied: bool,
     original_probe: Any,
     normalized_probe: Any,
+    frame_extraction: Any,
     latency_ms: int,
 ) -> None:
     print(
@@ -150,6 +164,11 @@ def _log_translate_sign_event(
                 "original_height": original_probe.height,
                 "normalized_width": normalized_probe.width,
                 "normalized_height": normalized_probe.height,
+                "frame_count": frame_extraction.frame_count,
+                "first_ts_ms": frame_extraction.first_ts_ms,
+                "last_ts_ms": frame_extraction.last_ts_ms,
+                "effective_fps": frame_extraction.effective_fps,
+                "cadence": frame_extraction.cadence,
                 "latency_ms": latency_ms,
                 "status": "ok",
             }
@@ -293,6 +312,27 @@ def translate_sign_wsgi_app(
             retryable=False,
         )
 
+    frame_extractor = environ.get("frame_extractor_callable") or extract_frames_from_canonical_video
+    try:
+        frame_extraction = frame_extractor(canonical_video_bytes, probe=normalized_probe)
+    except FrameExtractionError as exc:
+        return _error(
+            exc.code,
+            str(exc),
+            context.request_id,
+            retryable=exc.retryable,
+            status=exc.status,
+            details=exc.details,
+        )
+    except Exception as exc:
+        return _error(
+            "FRAME_EXTRACTION_FAILED",
+            f"Frame extraction failed: {exc}",
+            context.request_id,
+            retryable=False,
+            status="422 Unprocessable Entity",
+        )
+
     cloud_infer = environ.get("cloud_infer_callable") or _default_cloud_infer
 
     try:
@@ -352,6 +392,15 @@ def translate_sign_wsgi_app(
             normalization_applied=normalization_applied,
             profile=profile,
         ),
+        "frame_extraction": {
+            "frame_count": frame_extraction.frame_count,
+            "first_ts_ms": frame_extraction.first_ts_ms,
+            "last_ts_ms": frame_extraction.last_ts_ms,
+            "effective_fps": frame_extraction.effective_fps,
+            "cadence": frame_extraction.cadence,
+            "max_frames": MAX_FRAMES,
+            "overflow_policy": OVERFLOW_POLICY,
+        },
     }
 
     _safe_append_event(
@@ -372,6 +421,7 @@ def translate_sign_wsgi_app(
         normalization_applied=normalization_applied,
         original_probe=original_probe,
         normalized_probe=normalized_probe,
+        frame_extraction=frame_extraction,
         latency_ms=payload["latency_ms"],
     )
 
