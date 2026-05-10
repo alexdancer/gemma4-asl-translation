@@ -691,3 +691,84 @@ def test_translate_sign_accepts_x_api_key_header(monkeypatch) -> None:
     assert status == "200 OK"
     assert payload["prediction"] == "Hello"
 
+
+def test_translate_sign_maps_multiword_contract_fields() -> None:
+    environ = _base_environ(request_id="rid-mw-1")
+    environ["cloud_infer_callable"] = lambda **kwargs: {
+        "request_id": kwargs["request_id"],
+        "transcript_words": [
+            {"word": "HELLO", "start_ms": 0, "end_ms": 420, "confidence": 0.91},
+            {"word": "WORLD", "start_ms": 430, "end_ms": 900, "confidence": 0.89},
+        ],
+        "sequence_confidence": 0.9,
+        "low_confidence": False,
+        "confidence": 0.9,
+        "latency_ms": 12,
+    }
+
+    status, _headers, raw = translate_sign_wsgi_app(environ)
+    payload = json.loads(raw.decode("utf-8"))
+
+    assert status == "200 OK"
+    assert payload["translation"] == "HELLO WORLD"
+    assert payload["prediction"] == "HELLO WORLD"
+    assert payload["status"] == "completed"
+    assert payload["sequence_confidence"] == 0.9
+    assert payload["low_confidence"] is False
+    assert payload["transcript_words"] == [
+        {"word": "HELLO", "start_ms": 0, "end_ms": 420, "confidence": 0.91},
+        {"word": "WORLD", "start_ms": 430, "end_ms": 900, "confidence": 0.89},
+    ]
+
+
+def test_translate_sign_defaults_multiword_fields_when_provider_returns_translation_only() -> None:
+    environ = _base_environ(request_id="rid-mw-2")
+    environ["cloud_infer_callable"] = lambda **kwargs: {
+        "request_id": kwargs["request_id"],
+        "translation": "Hello",
+        "confidence": 0.77,
+        "latency_ms": 7,
+    }
+
+    status, _headers, raw = translate_sign_wsgi_app(environ)
+    payload = json.loads(raw.decode("utf-8"))
+
+    assert status == "200 OK"
+    assert payload["sequence_confidence"] == 0.77
+    assert payload["low_confidence"] is False
+    assert payload["transcript_words"] == [
+        {"word": "Hello", "start_ms": 0, "end_ms": 0, "confidence": 0.77}
+    ]
+
+
+def test_translate_sign_returns_422_when_transcript_word_timestamp_invalid() -> None:
+    environ = _base_environ(request_id="rid-mw-bad-ts")
+    environ["cloud_infer_callable"] = lambda **kwargs: {
+        "request_id": kwargs["request_id"],
+        "transcript_words": [{"word": "HELLO", "start_ms": "bad", "end_ms": 100, "confidence": 0.9}],
+        "confidence": 0.9,
+    }
+
+    status, _headers, raw = translate_sign_wsgi_app(environ)
+    payload = json.loads(raw.decode("utf-8"))
+    assert status == "422 Unprocessable Entity"
+    assert payload["error_code"] == "INFERENCE_INVALID_RESPONSE"
+    assert payload["retryable"] is False
+
+
+def test_translate_sign_parses_string_low_confidence_false() -> None:
+    environ = _base_environ(request_id="rid-mw-low")
+    environ["cloud_infer_callable"] = lambda **kwargs: {
+        "request_id": kwargs["request_id"],
+        "translation": "Hello",
+        "confidence": 0.77,
+        "low_confidence": "false",
+        "latency_ms": 7,
+    }
+
+    status, _headers, raw = translate_sign_wsgi_app(environ)
+    payload = json.loads(raw.decode("utf-8"))
+
+    assert status == "200 OK"
+    assert payload["low_confidence"] is False
+

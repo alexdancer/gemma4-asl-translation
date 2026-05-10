@@ -326,13 +326,89 @@ def _normalize_inference_result(*, result: dict[str, Any], include_provider_debu
     predictable validation and error typing.
     """
 
+    def _as_int(value: Any, *, field_name: str) -> int:
+        try:
+            return int(value)
+        except (TypeError, ValueError) as exc:
+            raise CloudInferError(
+                "INFERENCE_INVALID_RESPONSE",
+                f"Model provider returned invalid {field_name}",
+                retryable=False,
+                status="422 Unprocessable Entity",
+            ) from exc
+
+    def _as_float(value: Any, *, field_name: str) -> float:
+        try:
+            return float(value)
+        except (TypeError, ValueError) as exc:
+            raise CloudInferError(
+                "INFERENCE_INVALID_RESPONSE",
+                f"Model provider returned invalid {field_name}",
+                retryable=False,
+                status="422 Unprocessable Entity",
+            ) from exc
+
+    def _pick_value(primary: Any, secondary: Any, default: Any) -> Any:
+        if primary is not None:
+            return primary
+        if secondary is not None:
+            return secondary
+        return default
+
+    def _as_bool(value: Any) -> bool:
+        if isinstance(value, bool):
+            return value
+        if isinstance(value, (int, float)):
+            return bool(value)
+        if isinstance(value, str):
+            lowered = value.strip().lower()
+            if lowered in {"1", "true", "yes", "y"}:
+                return True
+            if lowered in {"0", "false", "no", "n", ""}:
+                return False
+        return False
+
     prediction = result.get("prediction") or result.get("translation") or result.get("output", {}).get("translation")
     output_obj = result.get("output") if isinstance(result.get("output"), dict) else {}
+    transcript_words = result.get("transcript_words") or output_obj.get("transcript_words") or result.get("words") or []
+    if transcript_words and not isinstance(transcript_words, list):
+        transcript_words = []
+
+    if transcript_words:
+        normalized_words: list[dict[str, Any]] = []
+        for item in transcript_words:
+            if not isinstance(item, dict):
+                continue
+            word_value = item.get("word")
+            if not word_value:
+                continue
+            normalized_words.append(
+                {
+                    "word": str(word_value),
+                    "start_ms": _as_int(
+                        _pick_value(item.get("start_ms"), item.get("start"), 0),
+                        field_name="transcript_words.start_ms",
+                    ),
+                    "end_ms": _as_int(
+                        _pick_value(item.get("end_ms"), item.get("end"), 0),
+                        field_name="transcript_words.end_ms",
+                    ),
+                    "confidence": _as_float(
+                        item.get("confidence") if item.get("confidence") is not None else 0.0,
+                        field_name="transcript_words.confidence",
+                    ),
+                }
+            )
+        transcript_words = normalized_words
+
+    if not prediction and transcript_words:
+        prediction = " ".join(word["word"] for word in transcript_words)
+
     if "confidence" in result and result.get("confidence") is not None:
         confidence = result.get("confidence")
     else:
         confidence = output_obj.get("confidence")
-    alternatives = result.get("alternatives") or []
+    alternatives = result.get("alternatives") or output_obj.get("alternatives") or []
 
     if not prediction:
         raise CloudInferError(
@@ -351,8 +427,33 @@ def _normalize_inference_result(*, result: dict[str, Any], include_provider_debu
 
     normalized = {
         "prediction": str(prediction),
-        "confidence": float(confidence),
+        "confidence": _as_float(confidence, field_name="confidence"),
         "alternatives": alternatives,
+        "transcript_words": transcript_words
+        if transcript_words
+        else [
+            {
+                "word": str(prediction),
+                "start_ms": 0,
+                "end_ms": 0,
+                "confidence": _as_float(confidence, field_name="confidence"),
+            }
+        ],
+        "sequence_confidence": _as_float(
+            result.get("sequence_confidence")
+            if result.get("sequence_confidence") is not None
+            else output_obj.get("sequence_confidence")
+            if output_obj.get("sequence_confidence") is not None
+            else confidence,
+            field_name="sequence_confidence",
+        ),
+        "low_confidence": _as_bool(
+            result.get("low_confidence")
+            if result.get("low_confidence") is not None
+            else output_obj.get("low_confidence")
+            if output_obj.get("low_confidence") is not None
+            else False
+        ),
     }
     if include_provider_debug:
         normalized["provider_debug"] = result
@@ -455,6 +556,16 @@ def _default_cloud_infer(
         "prediction": str(prediction),
         "confidence": float(confidence),
         "alternatives": decoded.get("alternatives") or decoded.get("output", {}).get("alternatives") or [],
+        "transcript_words": decoded.get("transcript_words")
+        or decoded.get("output", {}).get("transcript_words")
+        or decoded.get("words")
+        or [],
+        "sequence_confidence": decoded.get("sequence_confidence")
+        if decoded.get("sequence_confidence") is not None
+        else decoded.get("output", {}).get("sequence_confidence"),
+        "low_confidence": decoded.get("low_confidence")
+        if decoded.get("low_confidence") is not None
+        else decoded.get("output", {}).get("low_confidence"),
         "provider_raw": decoded,
         "latency_ms": latency_ms,
     }
@@ -698,6 +809,10 @@ def translate_sign_wsgi_app(
         "confidence": normalized_inference["confidence"],
         "alternatives": normalized_inference["alternatives"],
         "translation": normalized_inference["prediction"],
+        "transcript_words": normalized_inference["transcript_words"],
+        "sequence_confidence": normalized_inference["sequence_confidence"],
+        "low_confidence": normalized_inference["low_confidence"],
+        "status": "completed",
         "latency_ms": int(result.get("latency_ms", (time.monotonic() - context.started) * 1000)),
         "video_ingest": _build_video_ingest_payload(
             original_probe=original_probe,
