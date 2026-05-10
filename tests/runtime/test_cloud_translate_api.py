@@ -6,7 +6,7 @@ from types import SimpleNamespace
 import uuid
 from pathlib import Path
 
-from src.cloud_translate_api import _default_cloud_infer, translate_sign_wsgi_app
+from src.cloud_translate_api import CloudInferError, _default_cloud_infer, translate_sign_wsgi_app
 from src.frame_extraction import FrameExtractionError
 from src.video_ingest import CanonicalVideoProfile, VideoProbeResult
 
@@ -113,7 +113,7 @@ def test_translate_sign_accepts_multipart_and_returns_real_schema(tmp_path: Path
     assert status == "200 OK"
     assert dict(headers)["Content-Type"] == "application/json"
     assert payload["request_id"] == rid
-    assert payload["gloss"] == "HELLO"
+    assert payload["prediction"] == "Hello"
     assert payload["translation"] == "Hello"
     assert payload["confidence"] == 0.93
     assert payload["latency_ms"] == 123
@@ -260,7 +260,7 @@ def test_translate_sign_telemetry_failure_is_fail_open(monkeypatch) -> None:
     payload = json.loads(raw.decode("utf-8"))
 
     assert status == "200 OK"
-    assert payload["gloss"] == "HELLO"
+    assert payload["prediction"] == "Hello"
 
 
 def test_default_cloud_infer_sends_real_base64(monkeypatch) -> None:
@@ -290,6 +290,109 @@ def test_default_cloud_infer_sends_real_base64(monkeypatch) -> None:
 
     assert body["input"]["encoding"] == "base64"
     assert body["input"]["video_base64"] == base64.b64encode(b"abc").decode("ascii")
+
+
+def test_default_cloud_infer_includes_pose_summary_when_pose_handoff_present(monkeypatch) -> None:
+    captured = {}
+
+    class DummyResp:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+        def read(self):
+            return b'{"translation":"Hello","confidence":0.9,"latency_ms":12}'
+
+    def fake_urlopen(req, timeout):
+        captured["body"] = req.data
+        captured["timeout"] = timeout
+        return DummyResp()
+
+    monkeypatch.setenv("ASL_CLOUD_INFER_URL", "https://example.test/infer")
+    monkeypatch.setenv("ASL_CLOUD_API_KEY", "k")
+    monkeypatch.setattr("src.cloud_translate_api.urlrequest.urlopen", fake_urlopen)
+
+    pose_handoff = SimpleNamespace(
+        frame_count=30,
+        first_ts_ms=0,
+        last_ts_ms=967,
+        frames=[SimpleNamespace(index=0, timestamp_ms=0, landmarks={"body": []})],
+    )
+
+    _default_cloud_infer(
+        video_bytes=b"abc",
+        filename="clip.mov",
+        request_id="rid-1",
+        timeout_seconds=3.0,
+        pose_handoff=pose_handoff,
+    )
+    body = json.loads(captured["body"].decode("utf-8"))
+    assert body["input"]["pose_summary"] == {"frame_count": 30, "first_ts_ms": 0, "last_ts_ms": 967}
+
+
+def test_default_cloud_infer_includes_pose_sequence_when_enabled(monkeypatch) -> None:
+    captured = {}
+
+    class DummyResp:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+        def read(self):
+            return b'{"translation":"Hello","confidence":0.9,"latency_ms":12}'
+
+    def fake_urlopen(req, timeout):
+        captured["body"] = req.data
+        return DummyResp()
+
+    monkeypatch.setenv("ASL_CLOUD_INFER_URL", "https://example.test/infer")
+    monkeypatch.setenv("ASL_CLOUD_API_KEY", "k")
+    monkeypatch.setenv("ASL_INFER_INCLUDE_POSE_SEQUENCE", "1")
+    monkeypatch.setattr("src.cloud_translate_api.urlrequest.urlopen", fake_urlopen)
+
+    pose_handoff = SimpleNamespace(
+        frame_count=1,
+        first_ts_ms=0,
+        last_ts_ms=0,
+        frames=[SimpleNamespace(index=0, timestamp_ms=0, landmarks={"body": [[0.0, 0.0, 0.0, 1.0]]})],
+    )
+
+    _default_cloud_infer(
+        video_bytes=b"abc",
+        filename="clip.mov",
+        request_id="rid-1",
+        timeout_seconds=3.0,
+        pose_handoff=pose_handoff,
+    )
+    body = json.loads(captured["body"].decode("utf-8"))
+    assert body["input"]["pose_sequence"][0]["index"] == 0
+    assert body["input"]["pose_sequence"][0]["timestamp_ms"] == 0
+
+
+def test_default_cloud_infer_accepts_zero_confidence(monkeypatch) -> None:
+    class DummyResp:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+        def read(self):
+            return b'{"translation":"Hello","confidence":0,"latency_ms":12}'
+
+    def fake_urlopen(req, timeout):
+        return DummyResp()
+
+    monkeypatch.setenv("ASL_CLOUD_INFER_URL", "https://example.test/infer")
+    monkeypatch.setenv("ASL_CLOUD_API_KEY", "k")
+    monkeypatch.setattr("src.cloud_translate_api.urlrequest.urlopen", fake_urlopen)
+
+    result = _default_cloud_infer(video_bytes=b"abc", filename="clip.mov", request_id="rid-1", timeout_seconds=3.0)
+    assert result["confidence"] == 0.0
 
 
 def test_translate_sign_unknown_path_uses_standard_error_schema() -> None:
@@ -444,5 +547,43 @@ def test_translate_sign_returns_503_when_pose_dependencies_unavailable() -> None
 
     assert status == "503 Service Unavailable"
     assert payload["error_code"] == "POSE_EXTRACTION_UNAVAILABLE"
+    assert payload["retryable"] is True
+
+
+def test_translate_sign_returns_422_for_invalid_inference_response() -> None:
+    def invalid_infer(*, video_bytes: bytes, filename: str, request_id: str, timeout_seconds: float):
+        raise CloudInferError(
+            "INFERENCE_INVALID_RESPONSE",
+            "Model provider returned empty prediction",
+            retryable=False,
+            status="422 Unprocessable Entity",
+        )
+
+    environ = _base_environ()
+    environ["cloud_infer_callable"] = invalid_infer
+    status, _headers, raw = translate_sign_wsgi_app(environ)
+    payload = json.loads(raw.decode("utf-8"))
+
+    assert status == "422 Unprocessable Entity"
+    assert payload["error_code"] == "INFERENCE_INVALID_RESPONSE"
+    assert payload["retryable"] is False
+
+
+def test_translate_sign_returns_502_for_malformed_upstream_payload() -> None:
+    def malformed_infer(*, video_bytes: bytes, filename: str, request_id: str, timeout_seconds: float):
+        raise CloudInferError(
+            "INFERENCE_UPSTREAM_MALFORMED",
+            "Model provider returned malformed JSON",
+            retryable=True,
+            status="502 Bad Gateway",
+        )
+
+    environ = _base_environ()
+    environ["cloud_infer_callable"] = malformed_infer
+    status, _headers, raw = translate_sign_wsgi_app(environ)
+    payload = json.loads(raw.decode("utf-8"))
+
+    assert status == "502 Bad Gateway"
+    assert payload["error_code"] == "INFERENCE_UPSTREAM_MALFORMED"
     assert payload["retryable"] is True
 

@@ -41,6 +41,29 @@ CloudInferCallable = Callable[..., dict[str, Any]]
 MAX_UPLOAD_BYTES = 60_000_000
 
 
+class CloudInferError(RuntimeError):
+    """Structured inference-stage error for deterministic API error mapping.
+
+    Lower layers raise this with explicit code/retryable/status so the top-level
+    request handler can return a stable error contract without ad-hoc parsing.
+    """
+
+    def __init__(
+        self,
+        code: str,
+        message: str,
+        *,
+        retryable: bool,
+        status: str,
+        details: dict[str, Any] | None = None,
+    ):
+        super().__init__(message)
+        self.code = code
+        self.retryable = retryable
+        self.status = status
+        self.details = details or {}
+
+
 @dataclass(frozen=True)
 class RequestContext:
     request_id: str
@@ -200,7 +223,89 @@ def _extract_video_part(content_type: str, body: bytes) -> tuple[bytes, str] | N
     return None
 
 
-def _default_cloud_infer(*, video_bytes: bytes, filename: str, request_id: str, timeout_seconds: float) -> dict[str, Any]:
+def _build_inference_input_payload(*, filename: str, pose_handoff: Any, include_pose_sequence: bool) -> dict[str, Any]:
+    """Build provider input from pose extraction output.
+
+    Default path keeps payload compact (`pose_summary`). Full per-frame
+    `pose_sequence` is opt-in for debug/experiments to control request size.
+    """
+
+    payload = {
+        "filename": filename,
+        "pose_summary": {
+            "frame_count": int(pose_handoff.frame_count),
+            "first_ts_ms": int(pose_handoff.first_ts_ms),
+            "last_ts_ms": int(pose_handoff.last_ts_ms),
+        },
+    }
+    if include_pose_sequence:
+        payload["pose_sequence"] = [
+            {
+                "index": int(frame.index),
+                "timestamp_ms": int(frame.timestamp_ms),
+                "landmarks": frame.landmarks,
+            }
+            for frame in getattr(pose_handoff, "frames", [])
+        ]
+    return payload
+
+
+def _normalize_inference_result(*, result: dict[str, Any], include_provider_debug: bool) -> dict[str, Any]:
+    """Normalize provider response into the app-facing response contract.
+
+    Providers may return different shapes (`prediction`, `translation`, nested
+    `output.translation`), but the API always emits prediction/confidence with
+    predictable validation and error typing.
+    """
+
+    prediction = result.get("prediction") or result.get("translation") or result.get("output", {}).get("translation")
+    output_obj = result.get("output") if isinstance(result.get("output"), dict) else {}
+    if "confidence" in result and result.get("confidence") is not None:
+        confidence = result.get("confidence")
+    else:
+        confidence = output_obj.get("confidence")
+    alternatives = result.get("alternatives") or []
+
+    if not prediction:
+        raise CloudInferError(
+            "INFERENCE_INVALID_RESPONSE",
+            "Model provider returned empty prediction",
+            retryable=False,
+            status="422 Unprocessable Entity",
+        )
+    if confidence is None:
+        raise CloudInferError(
+            "INFERENCE_INVALID_RESPONSE",
+            "Model provider response missing confidence",
+            retryable=False,
+            status="422 Unprocessable Entity",
+        )
+
+    normalized = {
+        "prediction": str(prediction),
+        "confidence": float(confidence),
+        "alternatives": alternatives,
+    }
+    if include_provider_debug:
+        normalized["provider_debug"] = result
+    return normalized
+
+
+def _default_cloud_infer(
+    *,
+    video_bytes: bytes,
+    filename: str,
+    request_id: str,
+    timeout_seconds: float,
+    pose_handoff: Any | None = None,
+) -> dict[str, Any]:
+    """Invoke upstream model provider and return normalized internal fields.
+
+    This function is the network boundary: it validates required env config,
+    sends request payload (optionally enriched with pose data), and converts
+    upstream transport/schema failures into typed inference errors.
+    """
+
     endpoint = os.environ.get("ASL_CLOUD_INFER_URL")
     api_key = os.environ.get("ASL_CLOUD_API_KEY")
     model_name = os.environ.get("ASL_CLOUD_MODEL", "cactus-asl-v2")
@@ -210,14 +315,25 @@ def _default_cloud_infer(*, video_bytes: bytes, filename: str, request_id: str, 
     if not api_key:
         raise RuntimeError("ASL_CLOUD_API_KEY is not configured")
 
+    include_pose_sequence = os.environ.get("ASL_INFER_INCLUDE_POSE_SEQUENCE", "0") == "1"
+    input_payload = {
+        "filename": filename,
+        "video_base64": base64.b64encode(video_bytes).decode("ascii"),
+        "encoding": "base64",
+    }
+    if pose_handoff is not None:
+        input_payload.update(
+            _build_inference_input_payload(
+                filename=filename,
+                pose_handoff=pose_handoff,
+                include_pose_sequence=include_pose_sequence,
+            )
+        )
+
     payload = {
         "request_id": request_id,
         "model": model_name,
-        "input": {
-            "filename": filename,
-            "video_base64": base64.b64encode(video_bytes).decode("ascii"),
-            "encoding": "base64",
-        },
+        "input": input_payload,
     }
     body = json.dumps(payload).encode("utf-8")
     req = urlrequest.Request(
@@ -241,25 +357,48 @@ def _default_cloud_infer(*, video_bytes: bytes, filename: str, request_id: str, 
             raise TimeoutError("upstream timeout") from exc
         raise RuntimeError(f"upstream request failed: {exc.reason}") from exc
 
-    decoded = json.loads(raw)
-    gloss = decoded.get("gloss") or decoded.get("output", {}).get("gloss")
-    translation = decoded.get("translation") or decoded.get("output", {}).get("translation")
-    confidence = decoded.get("confidence") or decoded.get("output", {}).get("confidence")
+    try:
+        decoded = json.loads(raw)
+    except json.JSONDecodeError as exc:
+        raise CloudInferError(
+            "INFERENCE_UPSTREAM_MALFORMED",
+            "Model provider returned malformed JSON",
+            retryable=True,
+            status="502 Bad Gateway",
+        ) from exc
 
-    if gloss is None or translation is None or confidence is None:
-        raise RuntimeError("upstream response missing required fields")
+    prediction = decoded.get("prediction") or decoded.get("translation") or decoded.get("output", {}).get("translation")
+    output_obj = decoded.get("output") if isinstance(decoded.get("output"), dict) else {}
+    if "confidence" in decoded and decoded.get("confidence") is not None:
+        confidence = decoded.get("confidence")
+    else:
+        confidence = output_obj.get("confidence")
+    if not prediction or confidence is None:
+        raise CloudInferError(
+            "INFERENCE_INVALID_RESPONSE",
+            "Model provider response missing required prediction/confidence fields",
+            retryable=False,
+            status="422 Unprocessable Entity",
+        )
 
     latency_ms = int(decoded.get("latency_ms") or decoded.get("timing", {}).get("latency_ms") or 0)
     return {
         "request_id": decoded.get("request_id", request_id),
-        "gloss": str(gloss),
-        "translation": str(translation),
+        "prediction": str(prediction),
         "confidence": float(confidence),
+        "alternatives": decoded.get("alternatives") or decoded.get("output", {}).get("alternatives") or [],
+        "provider_raw": decoded,
         "latency_ms": latency_ms,
     }
 
 
 def _cloud_infer_supports_pose_handoff(cloud_infer: CloudInferCallable) -> bool:
+    """Return True if injected inference callable accepts `pose_handoff`.
+
+    Keeps backward compatibility with older callables in tests/runtime while
+    enabling richer inference input for newer implementations.
+    """
+
     try:
         signature = inspect.signature(cloud_infer)
     except (TypeError, ValueError):
@@ -269,6 +408,43 @@ def _cloud_infer_supports_pose_handoff(cloud_infer: CloudInferCallable) -> bool:
         if parameter.kind == inspect.Parameter.VAR_KEYWORD:
             return True
     return "pose_handoff" in signature.parameters
+
+
+def _record_infer_failure_telemetry(*, request_id: str, started: float, outcome: str) -> None:
+    """Emit a standardized telemetry event for inference failure paths."""
+
+    latency_ms = max(int((time.monotonic() - started) * 1000), 1)
+    _safe_append_event(
+        TelemetryEvent(
+            request_id=request_id,
+            latency_ms=latency_ms,
+            outcome=outcome,
+            confidence=0.0,
+            model_tag=os.environ.get("ASL_CLOUD_MODEL", "cactus-asl-v2"),
+        )
+    )
+
+
+def _build_infer_kwargs(
+    *,
+    cloud_infer: CloudInferCallable,
+    canonical_video_bytes: bytes,
+    filename: str,
+    request_id: str,
+    timeout_seconds: float,
+    pose_extraction: Any,
+) -> dict[str, Any]:
+    """Build cloud inference kwargs with backward-compatible pose injection."""
+
+    infer_kwargs: dict[str, Any] = {
+        "video_bytes": canonical_video_bytes,
+        "filename": filename,
+        "request_id": request_id,
+        "timeout_seconds": timeout_seconds,
+    }
+    if _cloud_infer_supports_pose_handoff(cloud_infer):
+        infer_kwargs["pose_handoff"] = pose_extraction
+    return infer_kwargs
 
 
 def translate_sign_wsgi_app(
@@ -371,27 +547,17 @@ def translate_sign_wsgi_app(
     cloud_infer = environ.get("cloud_infer_callable") or _default_cloud_infer
 
     try:
-        infer_kwargs = {
-            "video_bytes": canonical_video_bytes,
-            "filename": filename,
-            "request_id": context.request_id,
-            "timeout_seconds": timeout_seconds,
-        }
-        if _cloud_infer_supports_pose_handoff(cloud_infer):
-            infer_kwargs["pose_handoff"] = pose_extraction
-
+        infer_kwargs = _build_infer_kwargs(
+            cloud_infer=cloud_infer,
+            canonical_video_bytes=canonical_video_bytes,
+            filename=filename,
+            request_id=context.request_id,
+            timeout_seconds=timeout_seconds,
+            pose_extraction=pose_extraction,
+        )
         result = cloud_infer(**infer_kwargs)
     except TimeoutError:
-        latency_ms = max(int((time.monotonic() - context.started) * 1000), 1)
-        _safe_append_event(
-            TelemetryEvent(
-                request_id=context.request_id,
-                latency_ms=latency_ms,
-                outcome="timeout",
-                confidence=0.0,
-                model_tag=os.environ.get("ASL_CLOUD_MODEL", "cactus-asl-v2"),
-            )
-        )
+        _record_infer_failure_telemetry(request_id=context.request_id, started=context.started, outcome="timeout")
         return _error(
             "TIMEOUT",
             "Cloud inference timed out",
@@ -399,18 +565,20 @@ def translate_sign_wsgi_app(
             retryable=True,
             status="504 Gateway Timeout",
         )
+    except CloudInferError as exc:
+        print(json.dumps({"event": "cloud_infer_error", "request_id": context.request_id, "error": str(exc), "code": exc.code}))
+        _record_infer_failure_telemetry(request_id=context.request_id, started=context.started, outcome="upstream_failure")
+        return _error(
+            exc.code,
+            str(exc),
+            context.request_id,
+            retryable=exc.retryable,
+            status=exc.status,
+            details=exc.details,
+        )
     except Exception as exc:
         print(json.dumps({"event": "cloud_infer_error", "request_id": context.request_id, "error": str(exc)}))
-        latency_ms = max(int((time.monotonic() - context.started) * 1000), 1)
-        _safe_append_event(
-            TelemetryEvent(
-                request_id=context.request_id,
-                latency_ms=latency_ms,
-                outcome="upstream_failure",
-                confidence=0.0,
-                model_tag=os.environ.get("ASL_CLOUD_MODEL", "cactus-asl-v2"),
-            )
-        )
+        _record_infer_failure_telemetry(request_id=context.request_id, started=context.started, outcome="upstream_failure")
         return _error(
             "UPSTREAM_FAILURE",
             "Cloud inference request failed",
@@ -419,11 +587,27 @@ def translate_sign_wsgi_app(
             status="503 Service Unavailable",
         )
 
+    include_provider_debug = environ.get("inference_debug") is True
+    try:
+        # Normalize once at the API boundary to keep client-visible schema stable
+        # even when upstream provider response shape varies.
+        normalized_inference = _normalize_inference_result(result=result, include_provider_debug=include_provider_debug)
+    except CloudInferError as exc:
+        return _error(
+            exc.code,
+            str(exc),
+            context.request_id,
+            retryable=exc.retryable,
+            status=exc.status,
+            details=exc.details,
+        )
+
     payload = {
         "request_id": result.get("request_id", context.request_id),
-        "gloss": result["gloss"],
-        "translation": result["translation"],
-        "confidence": float(result["confidence"]),
+        "prediction": normalized_inference["prediction"],
+        "confidence": normalized_inference["confidence"],
+        "alternatives": normalized_inference["alternatives"],
+        "translation": normalized_inference["prediction"],
         "latency_ms": int(result.get("latency_ms", (time.monotonic() - context.started) * 1000)),
         "video_ingest": _build_video_ingest_payload(
             original_probe=original_probe,
@@ -447,6 +631,8 @@ def translate_sign_wsgi_app(
             "aligned_with_frame_timestamps": True,
         },
     }
+    if include_provider_debug and "provider_debug" in normalized_inference:
+        payload["provider_debug"] = normalized_inference["provider_debug"]
 
     _safe_append_event(
         TelemetryEvent(
