@@ -34,6 +34,15 @@ def _default_frame_extractor(_video_bytes: bytes, *, probe: VideoProbeResult):
     )
 
 
+def _default_pose_pipeline(*, request_id: str, frame_extraction):
+    return SimpleNamespace(
+        request_id=request_id,
+        frame_count=frame_extraction.frame_count,
+        first_ts_ms=frame_extraction.first_ts_ms,
+        last_ts_ms=frame_extraction.last_ts_ms,
+    )
+
+
 def _base_environ(*, method: str = "POST", path: str = "/v1/translate-sign", content_type: str | None = None, body: bytes | None = None, request_id: str | None = None) -> dict:
     environ = {
         "REQUEST_METHOD": method,
@@ -42,6 +51,7 @@ def _base_environ(*, method: str = "POST", path: str = "/v1/translate-sign", con
         "wsgi.input_body": body if body is not None else _multipart_body(),
         "video_ingest_callable": _default_video_ingest,
         "frame_extractor_callable": _default_frame_extractor,
+        "pose_pipeline_callable": _default_pose_pipeline,
     }
     if request_id:
         environ["HTTP_X_REQUEST_ID"] = request_id
@@ -95,6 +105,7 @@ def test_translate_sign_accepts_multipart_and_returns_real_schema(tmp_path: Path
             CanonicalVideoProfile(),
         ),
         "frame_extractor_callable": _default_frame_extractor,
+        "pose_pipeline_callable": _default_pose_pipeline,
     }
     status, headers, raw = translate_sign_wsgi_app(environ)
     payload = json.loads(raw.decode("utf-8"))
@@ -110,6 +121,10 @@ def test_translate_sign_accepts_multipart_and_returns_real_schema(tmp_path: Path
     assert payload["frame_extraction"]["frame_count"] == 30
     assert payload["frame_extraction"]["effective_fps"] == 30.0
     assert payload["frame_extraction"]["cadence"] == "fixed_fps"
+    assert payload["pose_extraction"]["frame_count"] == 30
+    assert payload["pose_extraction"]["first_ts_ms"] == 0
+    assert payload["pose_extraction"]["last_ts_ms"] == 967
+    assert payload["pose_extraction"]["aligned_with_frame_timestamps"] is True
 
     telemetry_lines = telemetry_file.read_text(encoding="utf-8").strip().splitlines()
     assert len(telemetry_lines) == 1
@@ -152,6 +167,7 @@ def test_translate_sign_returns_retryable_timeout_error_when_cloud_times_out() -
             CanonicalVideoProfile(),
         ),
         "frame_extractor_callable": _default_frame_extractor,
+        "pose_pipeline_callable": _default_pose_pipeline,
     }
 
     status, _headers, raw = translate_sign_wsgi_app(environ)
@@ -183,6 +199,7 @@ def test_translate_sign_returns_service_unavailable_and_request_id_on_cloud_fail
             CanonicalVideoProfile(),
         ),
         "frame_extractor_callable": _default_frame_extractor,
+        "pose_pipeline_callable": _default_pose_pipeline,
     }
 
     status, _headers, raw = translate_sign_wsgi_app(environ)
@@ -237,6 +254,7 @@ def test_translate_sign_telemetry_failure_is_fail_open(monkeypatch) -> None:
             CanonicalVideoProfile(),
         ),
         "frame_extractor_callable": _default_frame_extractor,
+        "pose_pipeline_callable": _default_pose_pipeline,
     }
     status, _headers, raw = translate_sign_wsgi_app(environ)
     payload = json.loads(raw.decode("utf-8"))
@@ -306,6 +324,7 @@ def test_translate_sign_rejects_video_longer_than_10_seconds() -> None:
         "wsgi.input_body": _multipart_body(),
         "video_ingest_callable": long_duration,
         "frame_extractor_callable": _default_frame_extractor,
+        "pose_pipeline_callable": _default_pose_pipeline,
     }
     status, _headers, raw = translate_sign_wsgi_app(environ)
     payload = json.loads(raw.decode("utf-8"))
@@ -347,6 +366,7 @@ def test_translate_sign_emits_video_ingest_metadata_and_uses_canonical_bytes() -
         "cloud_infer_callable": fake_cloud_infer,
         "video_ingest_callable": fake_process,
         "frame_extractor_callable": _default_frame_extractor,
+        "pose_pipeline_callable": _default_pose_pipeline,
     }
     status, _headers, raw = translate_sign_wsgi_app(environ)
     payload = json.loads(raw.decode("utf-8"))
@@ -370,6 +390,7 @@ def test_translate_sign_returns_structured_error_for_unreadable_video() -> None:
         "wsgi.input_body": _multipart_body(),
         "video_ingest_callable": fake_process,
         "frame_extractor_callable": _default_frame_extractor,
+        "pose_pipeline_callable": _default_pose_pipeline,
     }
     status, _headers, raw = translate_sign_wsgi_app(environ)
     payload = json.loads(raw.decode("utf-8"))
@@ -394,6 +415,7 @@ def test_translate_sign_returns_422_frame_count_exceeded_details() -> None:
         "wsgi.input_body": _multipart_body(),
         "video_ingest_callable": _default_video_ingest,
         "frame_extractor_callable": fake_frame_extractor,
+        "pose_pipeline_callable": _default_pose_pipeline,
     }
     status, _headers, raw = translate_sign_wsgi_app(environ)
     payload = json.loads(raw.decode("utf-8"))
@@ -402,4 +424,25 @@ def test_translate_sign_returns_422_frame_count_exceeded_details() -> None:
     assert payload["error_code"] == "FRAME_COUNT_EXCEEDED"
     assert payload["retryable"] is False
     assert payload["details"] == {"fps": 30.0, "max_frames": 300, "video_duration_s": 10.0}
+
+
+def test_translate_sign_returns_503_when_pose_dependencies_unavailable() -> None:
+    def unavailable_pose_pipeline(*, request_id: str, frame_extraction):
+        from src.pose_handoff import PosePipelineError
+
+        raise PosePipelineError(
+            "POSE_EXTRACTION_UNAVAILABLE",
+            "Pose extraction dependencies are unavailable",
+            retryable=True,
+            status="503 Service Unavailable",
+        )
+
+    environ = _base_environ()
+    environ["pose_pipeline_callable"] = unavailable_pose_pipeline
+    status, _headers, raw = translate_sign_wsgi_app(environ)
+    payload = json.loads(raw.decode("utf-8"))
+
+    assert status == "503 Service Unavailable"
+    assert payload["error_code"] == "POSE_EXTRACTION_UNAVAILABLE"
+    assert payload["retryable"] is True
 

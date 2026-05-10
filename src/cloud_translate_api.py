@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import base64
 import hashlib
+import inspect
 import json
 import os
 import time
@@ -33,6 +34,7 @@ from src.frame_extraction import (
     extract_frames_from_canonical_video,
 )
 from src.video_ingest import VideoIngestError, process_uploaded_video
+from src.pose_handoff import PosePipelineError, run_pose_extraction_pipeline
 
 Response = tuple[str, list[tuple[str, str]], bytes]
 CloudInferCallable = Callable[..., dict[str, Any]]
@@ -257,6 +259,18 @@ def _default_cloud_infer(*, video_bytes: bytes, filename: str, request_id: str, 
     }
 
 
+def _cloud_infer_supports_pose_handoff(cloud_infer: CloudInferCallable) -> bool:
+    try:
+        signature = inspect.signature(cloud_infer)
+    except (TypeError, ValueError):
+        return False
+
+    for parameter in signature.parameters.values():
+        if parameter.kind == inspect.Parameter.VAR_KEYWORD:
+            return True
+    return "pose_handoff" in signature.parameters
+
+
 def translate_sign_wsgi_app(
     environ: dict[str, Any],
     _start_response: Callable[[str, list[tuple[str, str]]], None] | None = None,
@@ -333,15 +347,40 @@ def translate_sign_wsgi_app(
             status="422 Unprocessable Entity",
         )
 
+    pose_pipeline = environ.get("pose_pipeline_callable") or run_pose_extraction_pipeline
+    try:
+        pose_extraction = pose_pipeline(request_id=context.request_id, frame_extraction=frame_extraction)
+    except PosePipelineError as exc:
+        return _error(
+            exc.code,
+            str(exc),
+            context.request_id,
+            retryable=exc.retryable,
+            status=exc.status,
+            details=exc.details,
+        )
+    except Exception as exc:
+        return _error(
+            "POSE_EXTRACTION_FAILED",
+            f"Pose extraction failed: {exc}",
+            context.request_id,
+            retryable=False,
+            status="422 Unprocessable Entity",
+        )
+
     cloud_infer = environ.get("cloud_infer_callable") or _default_cloud_infer
 
     try:
-        result = cloud_infer(
-            video_bytes=canonical_video_bytes,
-            filename=filename,
-            request_id=context.request_id,
-            timeout_seconds=timeout_seconds,
-        )
+        infer_kwargs = {
+            "video_bytes": canonical_video_bytes,
+            "filename": filename,
+            "request_id": context.request_id,
+            "timeout_seconds": timeout_seconds,
+        }
+        if _cloud_infer_supports_pose_handoff(cloud_infer):
+            infer_kwargs["pose_handoff"] = pose_extraction
+
+        result = cloud_infer(**infer_kwargs)
     except TimeoutError:
         latency_ms = max(int((time.monotonic() - context.started) * 1000), 1)
         _safe_append_event(
@@ -400,6 +439,12 @@ def translate_sign_wsgi_app(
             "cadence": frame_extraction.cadence,
             "max_frames": MAX_FRAMES,
             "overflow_policy": OVERFLOW_POLICY,
+        },
+        "pose_extraction": {
+            "frame_count": pose_extraction.frame_count,
+            "first_ts_ms": pose_extraction.first_ts_ms,
+            "last_ts_ms": pose_extraction.last_ts_ms,
+            "aligned_with_frame_timestamps": True,
         },
     }
 
