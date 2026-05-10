@@ -19,6 +19,13 @@ type TranslateSuccess = {
   translation: string;
   confidence: number;
   latency_ms: number;
+  status?: 'completed';
+};
+
+type TranslatePending = {
+  request_id: string;
+  status: 'queued' | 'processing';
+  poll_url?: string;
 };
 
 type TranslateFailure = {
@@ -26,6 +33,7 @@ type TranslateFailure = {
   message: string;
   request_id: string;
   retryable: boolean;
+  status?: 'failed';
 };
 
 const DEFAULT_ENDPOINT = '';
@@ -42,13 +50,36 @@ function App(): React.JSX.Element {
   const [status, setStatus] = useState('Pick a <=5s video clip to translate.');
   const [result, setResult] = useState<TranslateSuccess | null>(null);
   const [failure, setFailure] = useState<TranslateFailure | null>(null);
-  const [isCheckingEndpoint, setIsCheckingEndpoint] = useState(false);
-  const [endpointCheckStatus, setEndpointCheckStatus] = useState('Not checked yet.');
 
   const canRun = useMemo(
     () => Boolean(selectedFile?.uri) && Boolean(endpoint.trim()) && !isUploading,
     [selectedFile?.uri, endpoint, isUploading],
   );
+
+  const mapErrorMessage = (failurePayload: TranslateFailure) => {
+    const byCode: Record<string, string> = {
+      UNAUTHORIZED: 'Authentication failed. Check your API key and try again.',
+      RATE_LIMITED: 'Server is busy. Please retry in a moment.',
+      PAYLOAD_TOO_LARGE: 'Video is too large. Upload a shorter clip (<=5 seconds).',
+      VIDEO_DURATION_EXCEEDED: 'Video is too long. Upload a clip up to 5 seconds.',
+      INVALID_VIDEO: 'Video could not be processed. Re-export and try again.',
+      TIMEOUT: 'Processing timed out. Please retry.',
+      UPSTREAM_FAILURE: 'Inference service is temporarily unavailable. Please retry.',
+      NETWORK_ERROR: 'Could not connect to server. Check network and try again.',
+    };
+
+    if (byCode[failurePayload.error_code]) {
+      return byCode[failurePayload.error_code];
+    }
+
+    if (failurePayload.retryable) {
+      return `${failurePayload.message || 'Request failed.'} You can retry.`;
+    }
+
+    return failurePayload.message || 'Translation failed. Please try another clip.';
+  };
+
+  const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
   const onPickVideo = async () => {
     try {
@@ -77,28 +108,6 @@ function App(): React.JSX.Element {
     }
   };
 
-  const onCheckEndpoint = async () => {
-    const trimmed = endpoint.trim();
-    if (!trimmed) {
-      setEndpointCheckStatus('Enter a cloud endpoint first.');
-      return;
-    }
-
-    setIsCheckingEndpoint(true);
-    setEndpointCheckStatus('Checking endpoint...');
-
-    try {
-      const response = await fetch(trimmed, {method: 'GET'});
-      setEndpointCheckStatus(`Reachable (HTTP ${response.status}).`);
-    } catch (error) {
-      setEndpointCheckStatus(
-        `Unreachable: ${error instanceof Error ? error.message : 'Network request failed'}`,
-      );
-    } finally {
-      setIsCheckingEndpoint(false);
-    }
-  };
-
   const onRunCloudTranslation = async () => {
     if (!selectedFile?.uri) {
       return;
@@ -116,29 +125,76 @@ function App(): React.JSX.Element {
         type: selectedFile.type ?? 'video/quicktime',
       } as unknown as Blob);
 
-      const response = await fetch(endpoint.trim(), {
+      const submitResponse = await fetch(endpoint.trim(), {
         method: 'POST',
         body: form,
       });
 
-      const json = (await response.json()) as TranslateSuccess | TranslateFailure;
-      if (response.ok) {
-        const ok = json as TranslateSuccess;
+      const submitJson = (await submitResponse.json()) as TranslateSuccess | TranslateFailure | TranslatePending;
+
+      if (submitResponse.ok && (submitJson as TranslateSuccess).translation) {
+        const ok = submitJson as TranslateSuccess;
         setResult(ok);
         setStatus(`Translation complete (${ok.latency_ms} ms).`);
-      } else {
-        const err = json as TranslateFailure;
-        setFailure(err);
-        setStatus(err.message || 'Translation failed.');
+        return;
       }
+
+      if (submitResponse.status === 202 || (submitJson as TranslatePending).status === 'queued' || (submitJson as TranslatePending).status === 'processing') {
+        const pending = submitJson as TranslatePending;
+        const pollUrl = pending.poll_url || `${endpoint.trim().replace(/\/$/, '')}/${pending.request_id}`;
+        let attempts = 0;
+        const maxAttempts = 20;
+
+        while (attempts < maxAttempts) {
+          attempts += 1;
+          setStatus(`Processing… (attempt ${attempts}/${maxAttempts})`);
+          await sleep(1000);
+
+          const pollResponse = await fetch(pollUrl, {method: 'GET'});
+          const pollJson = (await pollResponse.json()) as TranslateSuccess | TranslateFailure | TranslatePending;
+
+          if (pollResponse.ok && (pollJson as TranslateSuccess).translation) {
+            const ok = pollJson as TranslateSuccess;
+            setResult(ok);
+            setStatus(`Translation complete (${ok.latency_ms} ms).`);
+            return;
+          }
+
+          if ((pollJson as TranslatePending).status === 'queued' || (pollJson as TranslatePending).status === 'processing') {
+            continue;
+          }
+
+          const err = pollJson as TranslateFailure;
+          setFailure(err);
+          setStatus(mapErrorMessage(err));
+          return;
+        }
+
+        const timeoutFailure: TranslateFailure = {
+          error_code: 'TIMEOUT',
+          message: 'Processing did not complete in time.',
+          request_id: pending.request_id,
+          retryable: true,
+          status: 'failed',
+        };
+        setFailure(timeoutFailure);
+        setStatus(mapErrorMessage(timeoutFailure));
+        return;
+      }
+
+      const err = submitJson as TranslateFailure;
+      setFailure(err);
+      setStatus(mapErrorMessage(err));
     } catch (error) {
-      setStatus(error instanceof Error ? error.message : 'Could not connect to the server.');
-      setFailure({
+      const networkFailure: TranslateFailure = {
         error_code: 'NETWORK_ERROR',
         message: error instanceof Error ? error.message : 'Could not connect to the server.',
         request_id: '',
         retryable: true,
-      });
+        status: 'failed',
+      };
+      setFailure(networkFailure);
+      setStatus(mapErrorMessage(networkFailure));
     } finally {
       setIsUploading(false);
     }
@@ -161,32 +217,9 @@ function App(): React.JSX.Element {
           placeholderTextColor="#94a3b8"
         />
 
-        <TouchableOpacity
-          style={[styles.secondaryButton, isCheckingEndpoint && styles.disabledButton]}
-          onPress={onCheckEndpoint}
-          disabled={isCheckingEndpoint}>
-          {isCheckingEndpoint ? (
-            <ActivityIndicator color="#e2e8f0" />
-          ) : (
-            <Text style={styles.buttonText}>Check Cloud Connection</Text>
-          )}
-        </TouchableOpacity>
-
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>Endpoint check</Text>
-          <Text style={styles.cardValue}>{endpointCheckStatus}</Text>
-        </View>
-
         <TouchableOpacity style={styles.secondaryButton} onPress={onPickVideo}>
           <Text style={styles.buttonText}>Select Video</Text>
         </TouchableOpacity>
-
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>Selected clip</Text>
-          <Text style={styles.cardValue}>{selectedFile?.name ?? 'None'}</Text>
-          <Text style={styles.muted}>URI: {selectedFile?.uri ?? '-'}</Text>
-          <Text style={styles.muted}>Size: {selectedFile?.size ?? '-'} bytes</Text>
-        </View>
 
         <TouchableOpacity
           style={[styles.primaryButton, !canRun && styles.disabledButton]}
@@ -206,15 +239,14 @@ function App(): React.JSX.Element {
             <Text style={styles.cardValue}>Gloss: {result.gloss}</Text>
             <Text style={styles.cardValue}>Translation: {result.translation}</Text>
             <Text style={styles.muted}>Confidence: {result.confidence}</Text>
-            <Text style={styles.muted}>Request ID: {result.request_id}</Text>
           </View>
         ) : null}
 
         {failure ? (
           <View style={styles.errorCard}>
             <Text style={styles.cardTitle}>Error</Text>
-            <Text style={styles.errorText}>{failure.error_code}: {failure.message}</Text>
-            <Text style={styles.muted}>Request ID: {failure.request_id || '-'}</Text>
+            <Text style={styles.errorText}>{failure.error_code}: {mapErrorMessage(failure)}</Text>
+            <Text style={styles.muted}>Retryable: {failure.retryable ? 'Yes' : 'No'}</Text>
           </View>
         ) : null}
       </ScrollView>

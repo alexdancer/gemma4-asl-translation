@@ -1,0 +1,12 @@
+{
+  "sample_count": 20,
+  "exact_sequence_accuracy": 0.0,
+  "word_error_rate": 1.0,
+  "substitutions": 20,
+  "insertions": 0,
+  "deletions": 0,
+  "total_expected_words": 20,
+  "matched_word_recall": 0.0,
+  "timestamp_boundary_mae_ms": null,
+  "timestamp_boundary_count": 0
+}
