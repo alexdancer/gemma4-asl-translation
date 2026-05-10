@@ -4,3 +4,9 @@
 {"request_id": "8d0c304a-fce6-40ce-9115-129a52898503", "latency_ms": 1, "outcome": "upstream_failure", "confidence": 0.0, "model_tag": "cactus-asl-v2"}
 {"request_id": "5faeb1bb-4f65-479f-bb85-a105fedf9a01", "latency_ms": 1, "outcome": "timeout", "confidence": 0.0, "model_tag": "cactus-asl-v2"}
 {"request_id": "ef50f267-0145-43d1-b4d2-09d41e43da21", "latency_ms": 1, "outcome": "upstream_failure", "confidence": 0.0, "model_tag": "cactus-asl-v2"}
+{"request_id": "1f7af714-24b1-4a7a-98a5-fe7121c50be2", "latency_ms": 1, "outcome": "timeout", "confidence": 0.0, "model_tag": "cactus-asl-v2"}
+{"request_id": "feab1477-8db1-4600-9b23-27c664a8ba07", "latency_ms": 1, "outcome": "upstream_failure", "confidence": 0.0, "model_tag": "cactus-asl-v2"}
+{"request_id": "60f68c5f-59a0-45df-a468-bf2d5fb74b21", "latency_ms": 111, "outcome": "success", "confidence": 0.88, "model_tag": "cactus-asl-v2"}
+{"request_id": "560e56dc-d63f-4d82-bb25-6c80ec2eb394", "latency_ms": 1, "outcome": "timeout", "confidence": 0.0, "model_tag": "cactus-asl-v2"}
+{"request_id": "c1152e16-bc68-4807-aa52-7ac62aa52d98", "latency_ms": 1, "outcome": "upstream_failure", "confidence": 0.0, "model_tag": "cactus-asl-v2"}
+{"request_id": "851a3c33-bdfd-4b40-8ef7-fbc26eb1f8e3", "latency_ms": 111, "outcome": "success", "confidence": 0.88, "model_tag": "cactus-asl-v2"}

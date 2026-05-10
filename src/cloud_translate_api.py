@@ -18,6 +18,7 @@ import json
 import os
 import time
 import uuid
+from dataclasses import dataclass
 from email.parser import BytesParser
 from email.policy import default
 from typing import Any, Callable
@@ -25,10 +26,21 @@ from urllib import error as urlerror
 from urllib import request as urlrequest
 
 from src.telemetry_slo import TelemetryEvent, append_event
+from src.video_ingest import VideoIngestError, process_uploaded_video
 
 Response = tuple[str, list[tuple[str, str]], bytes]
 CloudInferCallable = Callable[..., dict[str, Any]]
 MAX_UPLOAD_BYTES = 60_000_000
+
+
+@dataclass(frozen=True)
+class RequestContext:
+    request_id: str
+    started: float
+    method: str
+    path: str
+    content_type: str
+    body: bytes
 
 
 def _safe_append_event(event: TelemetryEvent) -> None:
@@ -57,6 +69,91 @@ def _error(error_code: str, message: str, request_id: str, retryable: bool, stat
             "request_id": request_id,
             "retryable": retryable,
         },
+    )
+
+
+def _build_request_context(environ: dict[str, Any]) -> RequestContext:
+    return RequestContext(
+        request_id=environ.get("HTTP_X_REQUEST_ID") or str(uuid.uuid4()),
+        started=time.monotonic(),
+        method=environ.get("REQUEST_METHOD", ""),
+        path=environ.get("PATH_INFO", ""),
+        content_type=environ.get("CONTENT_TYPE", ""),
+        body=environ.get("wsgi.input_body", b""),
+    )
+
+
+def _build_video_ingest_payload(
+    *,
+    original_probe: Any,
+    normalized_probe: Any,
+    normalization_applied: bool,
+    profile: Any,
+) -> dict[str, Any]:
+    return {
+        "normalization_applied": normalization_applied,
+        "target": {
+            "max_duration_seconds": profile.max_duration_seconds,
+            "fps": profile.fps,
+            "width": profile.width,
+            "height": profile.height,
+            "video_codec": profile.video_codec,
+            "pixel_format": profile.pixel_format,
+            "audio": "stripped",
+        },
+        "original": {
+            "duration_seconds": original_probe.duration_seconds,
+            "fps": original_probe.fps,
+            "width": original_probe.width,
+            "height": original_probe.height,
+            "codec": original_probe.codec,
+            "pixel_format": original_probe.pixel_format,
+            "has_audio": original_probe.has_audio,
+        },
+        "normalized": {
+            "duration_seconds": normalized_probe.duration_seconds,
+            "fps": normalized_probe.fps,
+            "width": normalized_probe.width,
+            "height": normalized_probe.height,
+            "codec": normalized_probe.codec,
+            "pixel_format": normalized_probe.pixel_format,
+            "has_audio": normalized_probe.has_audio,
+        },
+    }
+
+
+def _log_translate_sign_event(
+    *,
+    request_id: str,
+    filename: str,
+    bytes_received: int,
+    canonical_video_bytes: bytes,
+    normalization_applied: bool,
+    original_probe: Any,
+    normalized_probe: Any,
+    latency_ms: int,
+) -> None:
+    print(
+        json.dumps(
+            {
+                "event": "translate_sign",
+                "request_id": request_id,
+                "filename_hint": _redacted_filename_hint(filename),
+                "bytes_received": bytes_received,
+                "normalized_bytes": len(canonical_video_bytes),
+                "normalization_applied": normalization_applied,
+                "original_duration_seconds": original_probe.duration_seconds,
+                "normalized_duration_seconds": normalized_probe.duration_seconds,
+                "original_fps": original_probe.fps,
+                "normalized_fps": normalized_probe.fps,
+                "original_width": original_probe.width,
+                "original_height": original_probe.height,
+                "normalized_width": normalized_probe.width,
+                "normalized_height": normalized_probe.height,
+                "latency_ms": latency_ms,
+                "status": "ok",
+            }
+        )
     )
 
 
@@ -148,52 +245,68 @@ def translate_sign_wsgi_app(
 ) -> Response:
     """Handle POST /v1/translate-sign and return JSON response."""
 
-    request_id = environ.get("HTTP_X_REQUEST_ID") or str(uuid.uuid4())
-    started = time.monotonic()
+    context = _build_request_context(environ)
 
-    method = environ.get("REQUEST_METHOD", "")
-    path = environ.get("PATH_INFO", "")
-
-    if method != "POST" or path != "/v1/translate-sign":
-        return _error("NOT_FOUND", "Endpoint not found", request_id, retryable=False, status="404 Not Found")
-
-    content_type = environ.get("CONTENT_TYPE", "")
-    body = environ.get("wsgi.input_body", b"")
+    if context.method != "POST" or context.path != "/v1/translate-sign":
+        return _error("NOT_FOUND", "Endpoint not found", context.request_id, retryable=False, status="404 Not Found")
 
     # 12-second timeout guard scaffold
-    elapsed = time.monotonic() - started
+    elapsed = time.monotonic() - context.started
     if elapsed > timeout_seconds:
-        return _error("TIMEOUT", "Request exceeded timeout", request_id, retryable=True, status="504 Gateway Timeout")
+        return _error("TIMEOUT", "Request exceeded timeout", context.request_id, retryable=True, status="504 Gateway Timeout")
 
-    video_part = _extract_video_part(content_type, body)
+    video_part = _extract_video_part(context.content_type, context.body)
     if video_part is None:
         return _error(
             "INVALID_REQUEST",
             "Expected multipart/form-data with a video part named 'video'",
-            request_id,
+            context.request_id,
             retryable=False,
         )
 
     video_bytes, filename = video_part
     if not video_bytes:
-        return _error("INVALID_VIDEO", "Uploaded video is empty", request_id, retryable=False)
+        return _error("INVALID_VIDEO", "Uploaded video is empty", context.request_id, retryable=False)
     if len(video_bytes) > MAX_UPLOAD_BYTES:
-        return _error("PAYLOAD_TOO_LARGE", "Uploaded video exceeds 60MB limit", request_id, retryable=False, status="413 Payload Too Large")
+        return _error(
+            "PAYLOAD_TOO_LARGE",
+            "Uploaded video exceeds 60MB limit",
+            context.request_id,
+            retryable=False,
+            status="413 Payload Too Large",
+        )
+
+    video_ingest = environ.get("video_ingest_callable") or process_uploaded_video
+    try:
+        original_probe, normalized_probe, canonical_video_bytes, normalization_applied, profile = video_ingest(
+            video_bytes,
+            filename,
+        )
+    except (VideoIngestError, RuntimeError, ValueError) as exc:
+        return _error("INVALID_VIDEO", f"Uploaded video could not be processed: {exc}", context.request_id, retryable=False)
+
+    if original_probe.duration_seconds > profile.max_duration_seconds:
+        return _error(
+            "VIDEO_DURATION_EXCEEDED",
+            f"Uploaded video exceeds maximum duration of {profile.max_duration_seconds:.0f} seconds",
+            context.request_id,
+            retryable=False,
+        )
 
     cloud_infer = environ.get("cloud_infer_callable") or _default_cloud_infer
 
     try:
         result = cloud_infer(
-            video_bytes=video_bytes,
+            video_bytes=canonical_video_bytes,
             filename=filename,
-            request_id=request_id,
+            request_id=context.request_id,
             timeout_seconds=timeout_seconds,
         )
     except TimeoutError:
-        latency_ms = max(int((time.monotonic() - started) * 1000), 1)
+        latency_ms = max(int((time.monotonic() - context.started) * 1000), 1)
         _safe_append_event(
             TelemetryEvent(
-                request_id=request_id,
+                request_id=context.request_id,
                 latency_ms=latency_ms,
                 outcome="timeout",
                 confidence=0.0,
@@ -203,16 +316,16 @@ def translate_sign_wsgi_app(
         return _error(
             "TIMEOUT",
             "Cloud inference timed out",
-            request_id,
+            context.request_id,
             retryable=True,
             status="504 Gateway Timeout",
         )
     except Exception as exc:
-        print(json.dumps({"event": "cloud_infer_error", "request_id": request_id, "error": str(exc)}))
-        latency_ms = max(int((time.monotonic() - started) * 1000), 1)
+        print(json.dumps({"event": "cloud_infer_error", "request_id": context.request_id, "error": str(exc)}))
+        latency_ms = max(int((time.monotonic() - context.started) * 1000), 1)
         _safe_append_event(
             TelemetryEvent(
-                request_id=request_id,
+                request_id=context.request_id,
                 latency_ms=latency_ms,
                 outcome="upstream_failure",
                 confidence=0.0,
@@ -222,17 +335,23 @@ def translate_sign_wsgi_app(
         return _error(
             "UPSTREAM_FAILURE",
             "Cloud inference request failed",
-            request_id,
+            context.request_id,
             retryable=True,
             status="503 Service Unavailable",
         )
 
     payload = {
-        "request_id": result.get("request_id", request_id),
+        "request_id": result.get("request_id", context.request_id),
         "gloss": result["gloss"],
         "translation": result["translation"],
         "confidence": float(result["confidence"]),
-        "latency_ms": int(result.get("latency_ms", (time.monotonic() - started) * 1000)),
+        "latency_ms": int(result.get("latency_ms", (time.monotonic() - context.started) * 1000)),
+        "video_ingest": _build_video_ingest_payload(
+            original_probe=original_probe,
+            normalized_probe=normalized_probe,
+            normalization_applied=normalization_applied,
+            profile=profile,
+        ),
     }
 
     _safe_append_event(
@@ -245,17 +364,15 @@ def translate_sign_wsgi_app(
         )
     )
 
-    print(
-        json.dumps(
-            {
-                "event": "translate_sign",
-                "request_id": payload["request_id"],
-                "filename_hint": _redacted_filename_hint(filename),
-                "bytes_received": len(video_bytes),
-                "latency_ms": payload["latency_ms"],
-                "status": "ok",
-            }
-        )
+    _log_translate_sign_event(
+        request_id=payload["request_id"],
+        filename=filename,
+        bytes_received=len(video_bytes),
+        canonical_video_bytes=canonical_video_bytes,
+        normalization_applied=normalization_applied,
+        original_probe=original_probe,
+        normalized_probe=normalized_probe,
+        latency_ms=payload["latency_ms"],
     )
 
     return _json_response("200 OK", payload)
