@@ -63,40 +63,4 @@ def test_ios_tracer_slice_rejects_confidence_outside_unit_interval(tmp_path: Pat
 
 
 def test_ios_swiftui_scaffold_contains_button_and_result_text_contract() -> None:
-    repo_root = Path(__file__).resolve().parents[2]
-    content_view = repo_root / "ios" / "ASL-App" / "ASL-App" / "ContentView.swift"
-    inference_client = repo_root / "ios" / "ASL-App" / "ASL-App" / "LocalCactusInferenceClient.swift"
-
-    assert content_view.exists(), "Expected iOS ContentView scaffold for issue #35"
-    assert inference_client.exists(), "Expected local inference adapter scaffold for issue #35"
-
-    content_source = content_view.read_text(encoding="utf-8")
-    inference_source = inference_client.read_text(encoding="utf-8")
-
-    assert 'Button("Run Cloud Translation")' in content_source
-    assert "Primary Output" in content_source
-    assert "Translation" in content_source
-    assert "Confidence" in content_source
-
-    assert "func infer(" in inference_source
-    assert "uploadVideoData: Data?" in inference_source
-    assert "uploadFilename: String?" in inference_source
-    assert "request.setValue(requestID, forHTTPHeaderField: \"X-Request-ID\")" in inference_source
-    assert "multipart/form-data; boundary=" in inference_source
-    assert "cloud_endpoint_success" in inference_source
-    assert "cloud_endpoint_error" in inference_source
-    assert "cloud_endpoint_unreachable" in inference_source
-    assert "maxRetryAttempts = 1" in inference_source
-    assert "cloud_endpoint_retry_exhausted" in inference_source
-    assert "for attempt in 0...maxRetryAttempts" in inference_source
-    assert "resolveCloudEndpoint" in inference_source
-    assert "ASLCloudEndpoint" in inference_source
-    assert "cloud_endpoint_loopback_on_device" in inference_source
-    assert "cloud_endpoint_not_configured" in inference_source
-    assert "failure?.retryable" in inference_source
-    assert "mapCloudErrorMessage(errorCode: failure?.errorCode, fallbackMessage: failure?.message, exhaustedRetry: attempt >= maxRetryAttempts)" in inference_source
-    assert "let mimeType = ext == \"mp4\" ? \"video/mp4\" : \"video/quicktime\"" in inference_source
-    assert "Button(\"Real Proof Run\")" in content_source
-    assert "private actor InferenceArtifactLogger" in content_source
-    assert "session_index.json" in content_source
-    assert "UUID().uuidString" in content_source
+    pytest.skip("Removed: iOS SwiftUI client was hard-deleted; RN app is primary client.")

@@ -12,8 +12,8 @@ This document locks the required final submission inputs as first-class delivera
 | 100-gloss promotion-gate report (Issue #43) | blocked | https://github.com/alexdancer/sign-language-asl/issues/43 | Blocked until issue #43 report artifacts are published. |
 | Demo failover proof artifact | ready | evaluation/results/prompt_control_reference/reference.json | Locked fallback reference artifact for judge-safe demo flow. |
 | Metrics dashboard artifacts | ready | evaluation/results/unsloth_top50_q64_full_dashboard_baseline_prompt_control/report.md | Current baseline metrics/report path. |
-| Write-up: problem + constraints summary | ready | docs/PRD_CACTUS_IOS_PHASE1_AND_100_GLOSS_EXPANSION.md | Source of final narrative inputs. |
-| Write-up: local-first routing + fallback explanation | ready | docs/PRD_CACTUS_IOS_PHASE1_AND_100_GLOSS_EXPANSION.md | Source of route/fallback framing for submission write-up. |
+| Write-up: problem + constraints summary | ready | docs/archive/legacy-ios/PRD_CACTUS_IOS_PHASE1_AND_100_GLOSS_EXPANSION.md | Legacy source of final narrative inputs. |
+| Write-up: local-first routing + fallback explanation | ready | docs/archive/legacy-ios/PRD_CACTUS_IOS_PHASE1_AND_100_GLOSS_EXPANSION.md | Legacy source of route/fallback framing for submission write-up. |
 
 ## Freeze Milestones
 

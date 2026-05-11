@@ -1,5 +1,7 @@
 # iPhone Run Guide (ASL-App + local Cactus runtime)
 
+> **Archive notice (2026-05):** `ios/ASL-App` has been removed from the repo. Primary development is React Native at `apps/mobile-rn`. This guide is retained only as historical reference for past device-evidence workflows.
+
 This is the exact checklist to run the app on a **real iPhone** and validate local runtime behavior.
 
 ---

@@ -55,6 +55,11 @@ The verifier uses the matching record in `--records` as the q64 shape contract;
 cached archives are resampled to that frame count and feature-count mismatches
 fail before writing evaluation metrics or readiness artifacts.
 
+## Platform status
+
+- **Primary client:** React Native (`apps/mobile-rn`)
+- **Legacy client:** iOS SwiftUI app removed from repo (hard-deleted); React Native is the only supported client.
+
 ## Docs
 
 - `docs/IMPLEMENTATION_REFERENCE.md` — current module map
@@ -63,6 +68,7 @@ fail before writing evaluation metrics or readiness artifacts.
 - `docs/VALIDATION_PIPELINE_CODE_GUIDE.md` — guide to the current staged validation pipeline
 - `docs/submission/submission_package_inputs.md` — required demo video, links, and write-up input tracker
 - `docs/submission/freeze_checklist.md` — feature/demo-writeup freeze enforcement checklist
+- `docs/LEGACY_IOS.md` — legacy iOS removal status and archived references
 - `evaluation/results/submission_lock/final_readiness_artifact.json` — machine-readable package completeness + open risks
 - `docs/archive/training-proof-era/` — older training/proof-era PRDs and runbooks kept for reference
 
