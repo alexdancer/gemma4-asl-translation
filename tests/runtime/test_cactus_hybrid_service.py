@@ -5,7 +5,7 @@ import json
 
 from urllib import error as urlerror
 
-from src.cactus_hybrid_service import hybrid_wsgi_app, _run_hybrid
+from src.cactus_hybrid_service import CloudHandoffError, hybrid_wsgi_app, _run_hybrid
 
 
 def _environ(*, body: dict, auth: str = "Bearer svc-key") -> dict:
@@ -64,7 +64,34 @@ def test_hybrid_service_fails_closed_when_handoff_fails(monkeypatch):
 
     status, payload = _decode(hybrid_wsgi_app(env))
     assert status == "503 Service Unavailable"
-    assert payload["error_code"] == "CLOUD_HANDOFF_FAILED"
+    assert payload["error_code"] == "UPSTREAM_FAILURE"
+    assert payload["evidence"]["upstream_status"] is None
+    assert payload["evidence"]["upstream_code"] == "CLOUD_HANDOFF_FAILED"
+    assert payload["evidence"]["upstream_request_id"] is None
+
+
+def test_hybrid_service_surfaces_structured_upstream_evidence(monkeypatch):
+    monkeypatch.setenv("ASL_CACTUS_SERVICE_API_KEY", "svc-key")
+
+    def fail_with_evidence(*, payload, timeout_seconds):
+        raise CloudHandoffError(
+            "cloud handoff http 503: model loading",
+            code="endpoint_unavailable",
+            upstream_status=503,
+            upstream_request_id="hf-req-77",
+        )
+
+    env = _environ(body={"request_id": "req-123", "model": "cactus-asl-v2", "input": {"filename": "a.mp4"}})
+    env["hybrid_infer_callable"] = fail_with_evidence
+
+    status, payload = _decode(hybrid_wsgi_app(env))
+    assert status == "503 Service Unavailable"
+    assert payload["error_code"] == "UPSTREAM_FAILURE"
+    assert payload["request_id"] == "req-123"
+    assert payload["evidence"]["upstream_status"] == 503
+    assert payload["evidence"]["upstream_code"] == "endpoint_unavailable"
+    assert payload["evidence"]["upstream_request_id"] == "hf-req-77"
+    assert "cloud handoff http 503" in payload["evidence"]["upstream_message"]
 
 
 def test_hybrid_service_rejects_missing_proof_fields(monkeypatch):
@@ -380,3 +407,34 @@ def test_run_hybrid_requires_request_id():
         raise AssertionError("expected ValueError")
     except ValueError as exc:
         assert str(exc) == "missing request_id"
+
+
+def test_hybrid_service_maps_http_error_to_upstream_failure_with_request_correlation(monkeypatch):
+    monkeypatch.setenv("ASL_CACTUS_SERVICE_API_KEY", "svc-key")
+    monkeypatch.setenv("ASL_HF_ROUTE_MODE", "chat")
+    monkeypatch.setenv("ASL_HF_OPENAI_BASE_URL", "https://dev-endpoint.example/v1")
+    monkeypatch.setenv("ASL_HF_TOKEN", "hf_test_token")
+
+    def fake_urlopen(req, timeout=0):
+        body = json.dumps(
+            {
+                "error": {
+                    "message": "model currently unavailable",
+                    "code": "endpoint_unavailable",
+                },
+                "request_id": "hf-req-99",
+            }
+        ).encode("utf-8")
+        raise urlerror.HTTPError(req.full_url, 503, "Service Unavailable", hdrs=None, fp=io.BytesIO(body))
+
+    monkeypatch.setattr("src.cactus_hybrid_service.urlrequest.urlopen", fake_urlopen)
+
+    env = _environ(body={"request_id": "req-83", "model": "cactus-asl-v2", "input": {"filename": "a.mp4"}})
+    status, payload = _decode(hybrid_wsgi_app(env))
+    assert status == "503 Service Unavailable"
+    assert payload["error_code"] == "UPSTREAM_FAILURE"
+    assert payload["request_id"] == "req-83"
+    assert payload["evidence"]["upstream_status"] == 503
+    assert payload["evidence"]["upstream_code"] == "endpoint_unavailable"
+    assert payload["evidence"]["upstream_request_id"] == "hf-req-99"
+    assert "cloud handoff http 503" in payload["evidence"]["upstream_message"]

@@ -29,9 +29,18 @@ from urllib import request as urlrequest
 class CloudHandoffError(RuntimeError):
     """Structured upstream handoff error."""
 
-    def __init__(self, message: str, *, code: str = "CLOUD_HANDOFF_FAILED") -> None:
+    def __init__(
+        self,
+        message: str,
+        *,
+        code: str = "CLOUD_HANDOFF_FAILED",
+        upstream_status: int | None = None,
+        upstream_request_id: str = "",
+    ) -> None:
         super().__init__(message)
         self.code = code
+        self.upstream_status = upstream_status
+        self.upstream_request_id = upstream_request_id
 
 Response = tuple[str, list[tuple[str, str]], bytes]
 HybridInferCallable = Callable[..., dict[str, Any]]
@@ -58,6 +67,27 @@ def _error(code: str, message: str, request_id: str, status: str, retryable: boo
             "message": message,
             "request_id": request_id,
             "retryable": retryable,
+        },
+    )
+
+
+def _error_with_evidence(
+    code: str,
+    message: str,
+    request_id: str,
+    status: str,
+    retryable: bool,
+    *,
+    evidence: dict[str, Any],
+) -> Response:
+    return _json_response(
+        status,
+        {
+            "error_code": code,
+            "message": message,
+            "request_id": request_id,
+            "retryable": retryable,
+            "evidence": evidence,
         },
     )
 
@@ -118,7 +148,7 @@ def _hf_post_json(*, endpoint: str, body: dict[str, Any], hf_token: str, request
         with urlrequest.urlopen(req, timeout=timeout_seconds) as resp:
             raw = resp.read().decode("utf-8")
     except TimeoutError as exc:
-        raise CloudHandoffError("cloud handoff timeout") from exc
+        raise CloudHandoffError("cloud handoff timeout", code="timeout") from exc
     except urlerror.HTTPError as exc:
         raw = exc.read().decode("utf-8", errors="replace") if hasattr(exc, "read") else ""
         try:
@@ -126,14 +156,22 @@ def _hf_post_json(*, endpoint: str, body: dict[str, Any], hf_token: str, request
         except json.JSONDecodeError:
             decoded = {}
         err = decoded.get("error") if isinstance(decoded, dict) else None
+        upstream_request_id = str(decoded.get("request_id") or "").strip() if isinstance(decoded, dict) else ""
         code = ""
         message = ""
         if isinstance(err, dict):
             code = str(err.get("code") or "").strip()
             message = str(err.get("message") or "").strip()
         detail = message or raw or str(exc.reason)
-        raise CloudHandoffError(f"cloud handoff http {exc.code}: {detail}", code=code or "CLOUD_HANDOFF_FAILED") from exc
+        raise CloudHandoffError(
+            f"cloud handoff http {exc.code}: {detail}",
+            code=code or "CLOUD_HANDOFF_FAILED",
+            upstream_status=exc.code,
+            upstream_request_id=upstream_request_id,
+        ) from exc
     except urlerror.URLError as exc:
+        if isinstance(exc.reason, TimeoutError):
+            raise CloudHandoffError("cloud handoff timeout", code="timeout") from exc
         raise CloudHandoffError(f"cloud handoff failed: {exc.reason}") from exc
 
     try:
@@ -352,14 +390,34 @@ def hybrid_wsgi_app(environ: dict[str, Any], timeout_seconds: float = 20.0) -> R
         result = infer_callable(payload=payload, timeout_seconds=timeout_seconds)
     except ValueError as exc:
         return _error("INVALID_REQUEST", str(exc), request_id, "400 Bad Request", False)
-    except Exception:
-        # Fail closed on handoff failure.
-        return _error(
-            "CLOUD_HANDOFF_FAILED",
+    except CloudHandoffError as exc:
+        return _error_with_evidence(
+            "UPSTREAM_FAILURE",
             "Cloud handoff request failed",
             request_id,
             "503 Service Unavailable",
             True,
+            evidence={
+                "upstream_status": exc.upstream_status,
+                "upstream_code": exc.code,
+                "upstream_message": str(exc),
+                "upstream_request_id": exc.upstream_request_id or None,
+            },
+        )
+    except Exception:
+        # Fail closed on handoff failure.
+        return _error_with_evidence(
+            "UPSTREAM_FAILURE",
+            "Cloud handoff request failed",
+            request_id,
+            "503 Service Unavailable",
+            True,
+            evidence={
+                "upstream_status": None,
+                "upstream_code": "CLOUD_HANDOFF_FAILED",
+                "upstream_message": "Cloud handoff request failed",
+                "upstream_request_id": None,
+            },
         )
 
     try:
