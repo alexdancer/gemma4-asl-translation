@@ -317,3 +317,66 @@ def test_run_hybrid_completion_mode_uses_completions(monkeypatch):
     )
     assert calls and calls[0].endswith("/completions")
     assert result["prediction"] == "WORLD"
+
+
+def test_run_hybrid_chat_mode_uses_chat_endpoint_and_preserves_request_id_header(monkeypatch):
+    monkeypatch.setenv("ASL_HF_ROUTE_MODE", "chat")
+
+    class _HttpOk:
+        def __init__(self, payload: dict):
+            self._payload = json.dumps(payload).encode("utf-8")
+
+        def read(self):
+            return self._payload
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+    captured = {}
+
+    def fake_urlopen(req, timeout=0):
+        captured["url"] = req.full_url
+        captured["timeout"] = timeout
+        captured["auth"] = req.get_header("Authorization")
+        header_items = {k.lower(): v for k, v in req.header_items()}
+        captured["request_id"] = header_items.get("x-request-id") or req.get_header("X-request-id")
+        captured["body"] = json.loads(req.data.decode("utf-8"))
+        return _HttpOk({"choices": [{"message": {"content": "SIGNED HELLO"}}]})
+
+    monkeypatch.setenv("ASL_HF_OPENAI_BASE_URL", "https://dev-endpoint.example/v1")
+    monkeypatch.setenv("ASL_HF_TOKEN", "hf_test_token")
+    monkeypatch.setattr("src.cactus_hybrid_service.urlrequest.urlopen", fake_urlopen)
+
+    result = _run_hybrid(
+        payload={
+            "request_id": "req-82",
+            "model": "AlexD281/asl-gemma4-e2b-q64-top50-merged-16bit",
+            "input": {"filename": "clip.mp4"},
+        },
+        timeout_seconds=20.0,
+    )
+
+    assert captured["url"] == "https://dev-endpoint.example/v1/chat/completions"
+    assert captured["timeout"] == 20.0
+    assert captured["auth"] == "Bearer hf_test_token"
+    assert captured["request_id"] == "req-82"
+    assert captured["body"]["model"] == "AlexD281/asl-gemma4-e2b-q64-top50-merged-16bit"
+    assert isinstance(captured["body"].get("messages"), list)
+    assert captured["body"]["messages"][0]["role"] == "system"
+    assert captured["body"]["messages"][1]["role"] == "user"
+    assert result["request_id"] == "req-82"
+    assert result["prediction"] == "SIGNED HELLO"
+
+
+def test_run_hybrid_requires_request_id():
+    try:
+        _run_hybrid(
+            payload={"model": "m", "input": {"filename": "clip.mp4"}},
+            timeout_seconds=20.0,
+        )
+        raise AssertionError("expected ValueError")
+    except ValueError as exc:
+        assert str(exc) == "missing request_id"
