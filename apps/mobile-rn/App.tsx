@@ -6,12 +6,13 @@ import {
   StatusBar,
   StyleSheet,
   Text,
-  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {pick, types, isErrorWithCode} from '@react-native-documents/picker';
+import {INFERENCE_CONFIG} from './src/inferenceConfig';
+import {mapErrorMessage, TranslateFailure, isBuildConfigReady} from './src/inferenceUx';
 
 type TranslateSuccess = {
   request_id: string;
@@ -28,18 +29,7 @@ type TranslatePending = {
   poll_url?: string;
 };
 
-type TranslateFailure = {
-  error_code: string;
-  message: string;
-  request_id: string;
-  retryable: boolean;
-  status?: 'failed';
-};
-
-const DEFAULT_ENDPOINT = '';
-
 function App(): React.JSX.Element {
-  const [endpoint, setEndpoint] = useState(DEFAULT_ENDPOINT);
   const [selectedFile, setSelectedFile] = useState<{
     name: string;
     uri: string;
@@ -47,39 +37,22 @@ function App(): React.JSX.Element {
     size?: number | null;
   } | null>(null);
   const [isUploading, setIsUploading] = useState(false);
-  const [status, setStatus] = useState('Pick a <=5s video clip to translate.');
+  const configReady = isBuildConfigReady();
+  const [status, setStatus] = useState(
+    configReady
+      ? 'Pick a <=5s video clip to translate.'
+      : 'Build configuration missing. Set inferenceConfig.ts apiUrl/apiKey and rebuild.',
+  );
   const [result, setResult] = useState<TranslateSuccess | null>(null);
   const [failure, setFailure] = useState<TranslateFailure | null>(null);
 
   const canRun = useMemo(
-    () => Boolean(selectedFile?.uri) && Boolean(endpoint.trim()) && !isUploading,
-    [selectedFile?.uri, endpoint, isUploading],
+    () => Boolean(selectedFile?.uri) && configReady && !isUploading,
+    [selectedFile?.uri, configReady, isUploading],
   );
 
-  const mapErrorMessage = (failurePayload: TranslateFailure) => {
-    const byCode: Record<string, string> = {
-      UNAUTHORIZED: 'Authentication failed. Check your API key and try again.',
-      RATE_LIMITED: 'Server is busy. Please retry in a moment.',
-      PAYLOAD_TOO_LARGE: 'Video is too large. Upload a shorter clip (<=5 seconds).',
-      VIDEO_DURATION_EXCEEDED: 'Video is too long. Upload a clip up to 5 seconds.',
-      INVALID_VIDEO: 'Video could not be processed. Re-export and try again.',
-      TIMEOUT: 'Processing timed out. Please retry.',
-      UPSTREAM_FAILURE: 'Inference service is temporarily unavailable. Please retry.',
-      NETWORK_ERROR: 'Could not connect to server. Check network and try again.',
-    };
 
-    if (byCode[failurePayload.error_code]) {
-      return byCode[failurePayload.error_code];
-    }
-
-    if (failurePayload.retryable) {
-      return `${failurePayload.message || 'Request failed.'} You can retry.`;
-    }
-
-    return failurePayload.message || 'Translation failed. Please try another clip.';
-  };
-
-  const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+  const sleep = (ms: number) => new Promise<void>(resolve => setTimeout(resolve, ms));
 
   const onPickVideo = async () => {
     try {
@@ -99,7 +72,11 @@ function App(): React.JSX.Element {
       });
       setResult(null);
       setFailure(null);
-      setStatus('Video selected. Ready to upload.');
+      setStatus(
+        configReady
+          ? 'Video selected. Ready to upload.'
+          : 'Build configuration missing. Set inferenceConfig.ts apiUrl/apiKey and rebuild.',
+      );
     } catch (error) {
       if (isErrorWithCode(error) && error.code === 'OPERATION_CANCELED') {
         return;
@@ -110,6 +87,18 @@ function App(): React.JSX.Element {
 
   const onRunCloudTranslation = async () => {
     if (!selectedFile?.uri) {
+      return;
+    }
+    if (!configReady) {
+      const misconfigured: TranslateFailure = {
+        error_code: 'CONFIG_MISCONFIGURED',
+        message: 'Build configuration is missing inference endpoint/key.',
+        request_id: '',
+        retryable: false,
+        status: 'failed',
+      };
+      setFailure(misconfigured);
+      setStatus(mapErrorMessage(misconfigured));
       return;
     }
     setIsUploading(true);
@@ -125,8 +114,13 @@ function App(): React.JSX.Element {
         type: selectedFile.type ?? 'video/quicktime',
       } as unknown as Blob);
 
-      const submitResponse = await fetch(endpoint.trim(), {
+      const authHeaders = {
+        'X-API-Key': INFERENCE_CONFIG.apiKey.trim(),
+      };
+
+      const submitResponse = await fetch(INFERENCE_CONFIG.apiUrl.trim(), {
         method: 'POST',
+        headers: authHeaders,
         body: form,
       });
 
@@ -141,7 +135,7 @@ function App(): React.JSX.Element {
 
       if (submitResponse.status === 202 || (submitJson as TranslatePending).status === 'queued' || (submitJson as TranslatePending).status === 'processing') {
         const pending = submitJson as TranslatePending;
-        const pollUrl = pending.poll_url || `${endpoint.trim().replace(/\/$/, '')}/${pending.request_id}`;
+        const pollUrl = pending.poll_url || `${INFERENCE_CONFIG.apiUrl.trim().replace(/\/$/, '')}/${pending.request_id}`;
         let attempts = 0;
         const maxAttempts = 20;
 
@@ -150,7 +144,10 @@ function App(): React.JSX.Element {
           setStatus(`Processing… (attempt ${attempts}/${maxAttempts})`);
           await sleep(1000);
 
-          const pollResponse = await fetch(pollUrl, {method: 'GET'});
+          const pollResponse = await fetch(pollUrl, {
+            method: 'GET',
+            headers: authHeaders,
+          });
           const pollJson = (await pollResponse.json()) as TranslateSuccess | TranslateFailure | TranslatePending;
 
           if (pollResponse.ok && (pollJson as TranslateSuccess).translation) {
@@ -206,16 +203,11 @@ function App(): React.JSX.Element {
       <ScrollView contentContainerStyle={styles.container}>
         <Text style={styles.title}>ASL v2 Cloud Translation (React Native)</Text>
 
-        <Text style={styles.label}>Cloud endpoint</Text>
-        <TextInput
-          value={endpoint}
-          onChangeText={setEndpoint}
-          autoCapitalize="none"
-          autoCorrect={false}
-          style={styles.input}
-          placeholder="https://your-domain/v1/translate-sign"
-          placeholderTextColor="#94a3b8"
-        />
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>Inference target</Text>
+          <Text style={styles.cardValue}>{INFERENCE_CONFIG.targetLabel}</Text>
+          <Text style={styles.muted}>{INFERENCE_CONFIG.apiUrl}</Text>
+        </View>
 
         <TouchableOpacity style={styles.secondaryButton} onPress={onPickVideo}>
           <Text style={styles.buttonText}>Select Video</Text>
@@ -258,16 +250,6 @@ const styles = StyleSheet.create({
   safeArea: {flex: 1, backgroundColor: '#020617'},
   container: {padding: 20, gap: 12},
   title: {fontSize: 22, fontWeight: '700', color: '#e2e8f0', marginBottom: 10},
-  label: {fontSize: 14, color: '#cbd5e1', marginBottom: 2},
-  input: {
-    borderWidth: 1,
-    borderColor: '#334155',
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    color: '#e2e8f0',
-    backgroundColor: '#0f172a',
-  },
   primaryButton: {
     backgroundColor: '#22d3ee',
     borderRadius: 10,

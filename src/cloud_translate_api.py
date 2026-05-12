@@ -318,6 +318,75 @@ def _build_inference_input_payload(*, filename: str, pose_handoff: Any, include_
     return payload
 
 
+def _validate_upstream_proof_fields(*, result: dict[str, Any], request_id: str) -> dict[str, Any]:
+    """Validate required Cactus proof fields from upstream response.
+
+    Required fields: runtime_mode (non-empty str), cloud_handoff (bool),
+    model_id (non-empty str), model_version (non-empty str).
+    If upstream response includes request_id, it must match the boundary request_id.
+    """
+
+    required_fields = ("runtime_mode", "cloud_handoff", "model_id", "model_version")
+    missing = [field for field in required_fields if field not in result]
+    if missing:
+        raise CloudInferError(
+            "INFERENCE_PROOF_MISSING",
+            f"Missing upstream proof fields: {', '.join(missing)}",
+            retryable=False,
+            status="502 Bad Gateway",
+        )
+
+    runtime_mode = result.get("runtime_mode")
+    model_id = result.get("model_id")
+    model_version = result.get("model_version")
+    cloud_handoff = result.get("cloud_handoff")
+
+    if not isinstance(runtime_mode, str) or not runtime_mode.strip():
+        raise CloudInferError(
+            "INFERENCE_PROOF_INVALID",
+            "Invalid upstream proof field: runtime_mode",
+            retryable=False,
+            status="502 Bad Gateway",
+        )
+    if not isinstance(model_id, str) or not model_id.strip():
+        raise CloudInferError(
+            "INFERENCE_PROOF_INVALID",
+            "Invalid upstream proof field: model_id",
+            retryable=False,
+            status="502 Bad Gateway",
+        )
+    if not isinstance(model_version, str) or not model_version.strip():
+        raise CloudInferError(
+            "INFERENCE_PROOF_INVALID",
+            "Invalid upstream proof field: model_version",
+            retryable=False,
+            status="502 Bad Gateway",
+        )
+    if not isinstance(cloud_handoff, bool):
+        raise CloudInferError(
+            "INFERENCE_PROOF_INVALID",
+            "Invalid upstream proof field: cloud_handoff",
+            retryable=False,
+            status="502 Bad Gateway",
+        )
+
+    upstream_request_id = str(result.get("request_id") or "").strip()
+    if upstream_request_id and upstream_request_id != request_id:
+        raise CloudInferError(
+            "INFERENCE_PROOF_INVALID",
+            "Invalid upstream proof field: request_id mismatch",
+            retryable=False,
+            status="502 Bad Gateway",
+        )
+
+    return {
+        "runtime_mode": runtime_mode.strip(),
+        "cloud_handoff": cloud_handoff,
+        "model_id": model_id.strip(),
+        "model_version": model_version.strip(),
+    }
+
+
 def _normalize_inference_result(*, result: dict[str, Any], include_provider_debug: bool) -> dict[str, Any]:
     """Normalize provider response into the app-facing response contract.
 
@@ -790,6 +859,7 @@ def translate_sign_wsgi_app(
 
     include_provider_debug = environ.get("inference_debug") is True
     try:
+        proof_fields = _validate_upstream_proof_fields(result=result, request_id=context.request_id)
         # Normalize once at the API boundary to keep client-visible schema stable
         # even when upstream provider response shape varies.
         normalized_inference = _normalize_inference_result(result=result, include_provider_debug=include_provider_debug)
@@ -812,6 +882,10 @@ def translate_sign_wsgi_app(
         "transcript_words": normalized_inference["transcript_words"],
         "sequence_confidence": normalized_inference["sequence_confidence"],
         "low_confidence": normalized_inference["low_confidence"],
+        "runtime_mode": proof_fields["runtime_mode"],
+        "cloud_handoff": proof_fields["cloud_handoff"],
+        "model_id": proof_fields["model_id"],
+        "model_version": proof_fields["model_version"],
         "status": "completed",
         "latency_ms": int(result.get("latency_ms", (time.monotonic() - context.started) * 1000)),
         "video_ingest": _build_video_ingest_payload(

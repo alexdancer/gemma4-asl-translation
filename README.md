@@ -60,6 +60,12 @@ fail before writing evaluation metrics or readiness artifacts.
 - **Primary client:** React Native (`apps/mobile-rn`)
 - **Legacy client:** iOS SwiftUI app removed from repo (hard-deleted); React Native is the only supported client.
 
+## Primary model (current default)
+
+- **Main model going forward:** `AlexD281/asl-gemma4-e2b-q64-top50-merged-16bit` (fine-tuned Gemma-4 E2B, merged 16-bit checkpoint).
+- **Cactus runtime artifact:** convert the merged checkpoint to local Cactus weights (example path used in parity runs: `/Users/alex/cactus/asl-gemma4-e2b-q64-top50-cactus-int4`).
+- **Adapter reference (not runtime default):** `AlexD281/asl-gemma4-e2b-q64-top50-lora`.
+
 ## Docs
 
 - `docs/IMPLEMENTATION_REFERENCE.md` — current module map

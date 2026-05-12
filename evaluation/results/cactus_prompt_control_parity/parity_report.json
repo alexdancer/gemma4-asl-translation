@@ -1,0 +1,679 @@
+{
+  "cactus_weights_path": "/Users/alex/cactus/asl-gemma4-e2b-q64-top50-cactus-int4",
+  "manifest_path": "data/processed/exports/asl_unsloth_pose_train_q64_full_top50_manifest.json",
+  "real_cactus_parity_proven": false,
+  "records_path": "data/processed/exports/asl_unsloth_pose_train_q64_full_top50_test.jsonl",
+  "reference_checkpoint_path": "checkpoints/unsloth_gemma-4-E4B-it_q64_full_top50_baseline",
+  "reference_path": "evaluation/results/prompt_control_reference/reference.json",
+  "runtime_mode": "cactus_engine",
+  "samples": [
+    {
+      "cactus": {
+        "normalized_gloss": "hearing",
+        "raw_model_output": "hearing",
+        "valid_label": true
+      },
+      "cactus_response_metadata": {
+        "cloud_handoff": false,
+        "confidence": 0.9994,
+        "decode_tokens": 1,
+        "decode_tps": 0.0,
+        "function_calls": [],
+        "prefill_tokens": 1889,
+        "prefill_tps": 395.28,
+        "ram_usage_mb": 918.75,
+        "segments": [],
+        "time_to_first_token_ms": 4778.91,
+        "total_time_ms": 4835.94,
+        "total_tokens": 1890
+      },
+      "correct_matches_expected": true,
+      "expected_gloss": "hearing",
+      "normalized_gloss_matches_python": true,
+      "python_reference": {
+        "normalized_gloss": "hearing",
+        "raw_model_output": "hearing",
+        "valid_label": true
+      },
+      "runtime_error": null,
+      "sample_id": "hearing_26986",
+      "selection_role": "smoke",
+      "valid_label_matches_python": true
+    },
+    {
+      "cactus": {
+        "normalized_gloss": "decide",
+        "raw_model_output": "decide",
+        "valid_label": true
+      },
+      "cactus_response_metadata": {
+        "cloud_handoff": false,
+        "confidence": 0.9983,
+        "decode_tokens": 2,
+        "decode_tps": 8.32,
+        "function_calls": [],
+        "prefill_tokens": 1958,
+        "prefill_tps": 393.8,
+        "ram_usage_mb": 497.38,
+        "segments": [],
+        "time_to_first_token_ms": 4972.03,
+        "total_time_ms": 5092.19,
+        "total_tokens": 1960
+      },
+      "correct_matches_expected": true,
+      "expected_gloss": "decide",
+      "normalized_gloss_matches_python": true,
+      "python_reference": {
+        "normalized_gloss": "decide",
+        "raw_model_output": "decide",
+        "valid_label": true
+      },
+      "runtime_error": null,
+      "sample_id": "decide_15040",
+      "selection_role": "demo",
+      "valid_label_matches_python": true
+    },
+    {
+      "cactus": {
+        "normalized_gloss": "drink",
+        "raw_model_output": "drink",
+        "valid_label": true
+      },
+      "cactus_response_metadata": {
+        "cloud_handoff": false,
+        "confidence": 0.9715,
+        "decode_tokens": 1,
+        "decode_tps": 0.0,
+        "function_calls": [],
+        "prefill_tokens": 1990,
+        "prefill_tps": 385.25,
+        "ram_usage_mb": 434.4,
+        "segments": [],
+        "time_to_first_token_ms": 5165.44,
+        "total_time_ms": 5228.32,
+        "total_tokens": 1991
+      },
+      "correct_matches_expected": false,
+      "expected_gloss": "center",
+      "normalized_gloss_matches_python": false,
+      "python_reference": {
+        "normalized_gloss": "center",
+        "raw_model_output": "center",
+        "valid_label": true
+      },
+      "runtime_error": null,
+      "sample_id": "center_09719",
+      "selection_role": "demo",
+      "valid_label_matches_python": true
+    },
+    {
+      "cactus": {
+        "normalized_gloss": "clothes",
+        "raw_model_output": "clothes",
+        "valid_label": true
+      },
+      "cactus_response_metadata": {
+        "cloud_handoff": false,
+        "confidence": 0.9991,
+        "decode_tokens": 1,
+        "decode_tps": 0.0,
+        "function_calls": [],
+        "prefill_tokens": 2016,
+        "prefill_tps": 382.11,
+        "ram_usage_mb": 441.27,
+        "segments": [],
+        "time_to_first_token_ms": 5275.99,
+        "total_time_ms": 5341.55,
+        "total_tokens": 2017
+      },
+      "correct_matches_expected": true,
+      "expected_gloss": "clothes",
+      "normalized_gloss_matches_python": true,
+      "python_reference": {
+        "normalized_gloss": "clothes",
+        "raw_model_output": "clothes",
+        "valid_label": true
+      },
+      "runtime_error": null,
+      "sample_id": "clothes_11305",
+      "selection_role": "demo",
+      "valid_label_matches_python": true
+    },
+    {
+      "cactus": {
+        "normalized_gloss": "backpack",
+        "raw_model_output": "backpack",
+        "valid_label": true
+      },
+      "cactus_response_metadata": {
+        "cloud_handoff": false,
+        "confidence": 0.9993,
+        "decode_tokens": 1,
+        "decode_tps": 0.0,
+        "function_calls": [],
+        "prefill_tokens": 2020,
+        "prefill_tps": 378.65,
+        "ram_usage_mb": 441.61,
+        "segments": [],
+        "time_to_first_token_ms": 5334.77,
+        "total_time_ms": 5401.84,
+        "total_tokens": 2021
+      },
+      "correct_matches_expected": true,
+      "expected_gloss": "backpack",
+      "normalized_gloss_matches_python": true,
+      "python_reference": {
+        "normalized_gloss": "backpack",
+        "raw_model_output": "backpack",
+        "valid_label": true
+      },
+      "runtime_error": null,
+      "sample_id": "backpack_04627",
+      "selection_role": "demo",
+      "valid_label_matches_python": true
+    },
+    {
+      "cactus": {
+        "normalized_gloss": "hot",
+        "raw_model_output": "hot",
+        "valid_label": true
+      },
+      "cactus_response_metadata": {
+        "cloud_handoff": false,
+        "confidence": 0.9992,
+        "decode_tokens": 1,
+        "decode_tps": 0.0,
+        "function_calls": [],
+        "prefill_tokens": 2053,
+        "prefill_tps": 369.71,
+        "ram_usage_mb": 434.3,
+        "segments": [],
+        "time_to_first_token_ms": 5553.04,
+        "total_time_ms": 5621.59,
+        "total_tokens": 2054
+      },
+      "correct_matches_expected": true,
+      "expected_gloss": "hot",
+      "normalized_gloss_matches_python": true,
+      "python_reference": {
+        "normalized_gloss": "hot",
+        "raw_model_output": "hot",
+        "valid_label": true
+      },
+      "runtime_error": null,
+      "sample_id": "hot_28122",
+      "selection_role": "demo",
+      "valid_label_matches_python": true
+    },
+    {
+      "cactus": {
+        "normalized_gloss": "bird",
+        "raw_model_output": "bird",
+        "valid_label": true
+      },
+      "cactus_response_metadata": {
+        "cloud_handoff": false,
+        "confidence": 0.9999,
+        "decode_tokens": 1,
+        "decode_tps": 0.0,
+        "function_calls": [],
+        "prefill_tokens": 1963,
+        "prefill_tps": 367.75,
+        "ram_usage_mb": 394.57,
+        "segments": [],
+        "time_to_first_token_ms": 5337.81,
+        "total_time_ms": 5406.19,
+        "total_tokens": 1964
+      },
+      "correct_matches_expected": true,
+      "expected_gloss": "bird",
+      "normalized_gloss_matches_python": true,
+      "python_reference": {
+        "normalized_gloss": "bird",
+        "raw_model_output": "bird",
+        "valid_label": true
+      },
+      "runtime_error": null,
+      "sample_id": "bird_06341",
+      "selection_role": "demo",
+      "valid_label_matches_python": true
+    },
+    {
+      "cactus": {
+        "normalized_gloss": "door",
+        "raw_model_output": "door",
+        "valid_label": true
+      },
+      "cactus_response_metadata": {
+        "cloud_handoff": false,
+        "confidence": 0.9935,
+        "decode_tokens": 1,
+        "decode_tps": 0.0,
+        "function_calls": [],
+        "prefill_tokens": 1964,
+        "prefill_tps": 362.38,
+        "ram_usage_mb": 431.15,
+        "segments": [],
+        "time_to_first_token_ms": 5419.8,
+        "total_time_ms": 5487.61,
+        "total_tokens": 1965
+      },
+      "correct_matches_expected": true,
+      "expected_gloss": "door",
+      "normalized_gloss_matches_python": true,
+      "python_reference": {
+        "normalized_gloss": "door",
+        "raw_model_output": "door",
+        "valid_label": true
+      },
+      "runtime_error": null,
+      "sample_id": "door_68038",
+      "selection_role": "demo",
+      "valid_label_matches_python": true
+    },
+    {
+      "cactus": {
+        "normalized_gloss": "paper",
+        "raw_model_output": "paper",
+        "valid_label": true
+      },
+      "cactus_response_metadata": {
+        "cloud_handoff": false,
+        "confidence": 0.9998,
+        "decode_tokens": 1,
+        "decode_tps": 0.0,
+        "function_calls": [],
+        "prefill_tokens": 2044,
+        "prefill_tps": 362.86,
+        "ram_usage_mb": 431.43,
+        "segments": [],
+        "time_to_first_token_ms": 5633.06,
+        "total_time_ms": 5705.75,
+        "total_tokens": 2045
+      },
+      "correct_matches_expected": true,
+      "expected_gloss": "paper",
+      "normalized_gloss_matches_python": true,
+      "python_reference": {
+        "normalized_gloss": "paper",
+        "raw_model_output": "paper",
+        "valid_label": true
+      },
+      "runtime_error": null,
+      "sample_id": "paper_70211",
+      "selection_role": "demo",
+      "valid_label_matches_python": true
+    },
+    {
+      "cactus": {
+        "normalized_gloss": "need",
+        "raw_model_output": "need",
+        "valid_label": true
+      },
+      "cactus_response_metadata": {
+        "cloud_handoff": false,
+        "confidence": 0.9985,
+        "decode_tokens": 1,
+        "decode_tps": 0.0,
+        "function_calls": [],
+        "prefill_tokens": 1879,
+        "prefill_tps": 358.44,
+        "ram_usage_mb": 399.33,
+        "segments": [],
+        "time_to_first_token_ms": 5242.12,
+        "total_time_ms": 5307.03,
+        "total_tokens": 1880
+      },
+      "correct_matches_expected": true,
+      "expected_gloss": "need",
+      "normalized_gloss_matches_python": true,
+      "python_reference": {
+        "normalized_gloss": "need",
+        "raw_model_output": "need",
+        "valid_label": true
+      },
+      "runtime_error": null,
+      "sample_id": "need_37891",
+      "selection_role": "demo",
+      "valid_label_matches_python": true
+    },
+    {
+      "cactus": {
+        "normalized_gloss": "candy",
+        "raw_model_output": "candy",
+        "valid_label": true
+      },
+      "cactus_response_metadata": {
+        "cloud_handoff": false,
+        "confidence": 0.9994,
+        "decode_tokens": 1,
+        "decode_tps": 0.0,
+        "function_calls": [],
+        "prefill_tokens": 1868,
+        "prefill_tps": 354.59,
+        "ram_usage_mb": 454.52,
+        "segments": [],
+        "time_to_first_token_ms": 5268.06,
+        "total_time_ms": 5336.69,
+        "total_tokens": 1869
+      },
+      "correct_matches_expected": true,
+      "expected_gloss": "candy",
+      "normalized_gloss_matches_python": true,
+      "python_reference": {
+        "normalized_gloss": "candy",
+        "raw_model_output": "candy",
+        "valid_label": true
+      },
+      "runtime_error": null,
+      "sample_id": "candy_08926",
+      "selection_role": "demo",
+      "valid_label_matches_python": true
+    },
+    {
+      "cactus": {
+        "normalized_gloss": "deaf",
+        "raw_model_output": "deaf",
+        "valid_label": true
+      },
+      "cactus_response_metadata": {
+        "cloud_handoff": false,
+        "confidence": 0.9999,
+        "decode_tokens": 2,
+        "decode_tps": 7.14,
+        "function_calls": [],
+        "prefill_tokens": 1863,
+        "prefill_tps": 351.85,
+        "ram_usage_mb": 426.21,
+        "segments": [],
+        "time_to_first_token_ms": 5294.83,
+        "total_time_ms": 5434.96,
+        "total_tokens": 1865
+      },
+      "correct_matches_expected": true,
+      "expected_gloss": "deaf",
+      "normalized_gloss_matches_python": true,
+      "python_reference": {
+        "normalized_gloss": "deaf",
+        "raw_model_output": "deaf",
+        "valid_label": true
+      },
+      "runtime_error": null,
+      "sample_id": "deaf_14899",
+      "selection_role": "demo",
+      "valid_label_matches_python": true
+    },
+    {
+      "cactus": {
+        "normalized_gloss": "wrong",
+        "raw_model_output": "wrong",
+        "valid_label": true
+      },
+      "cactus_response_metadata": {
+        "cloud_handoff": false,
+        "confidence": 0.9994,
+        "decode_tokens": 1,
+        "decode_tps": 0.0,
+        "function_calls": [],
+        "prefill_tokens": 1857,
+        "prefill_tps": 349.29,
+        "ram_usage_mb": 379.82,
+        "segments": [],
+        "time_to_first_token_ms": 5316.51,
+        "total_time_ms": 5388.54,
+        "total_tokens": 1858
+      },
+      "correct_matches_expected": true,
+      "expected_gloss": "wrong",
+      "normalized_gloss_matches_python": true,
+      "python_reference": {
+        "normalized_gloss": "wrong",
+        "raw_model_output": "wrong",
+        "valid_label": true
+      },
+      "runtime_error": null,
+      "sample_id": "wrong_64094",
+      "selection_role": "demo",
+      "valid_label_matches_python": true
+    },
+    {
+      "cactus": {
+        "normalized_gloss": "book",
+        "raw_model_output": "book",
+        "valid_label": true
+      },
+      "cactus_response_metadata": {
+        "cloud_handoff": false,
+        "confidence": 0.9975,
+        "decode_tokens": 1,
+        "decode_tps": 0.0,
+        "function_calls": [],
+        "prefill_tokens": 1925,
+        "prefill_tps": 345.7,
+        "ram_usage_mb": 435.47,
+        "segments": [],
+        "time_to_first_token_ms": 5568.33,
+        "total_time_ms": 5640.91,
+        "total_tokens": 1926
+      },
+      "correct_matches_expected": true,
+      "expected_gloss": "book",
+      "normalized_gloss_matches_python": true,
+      "python_reference": {
+        "normalized_gloss": "book",
+        "raw_model_output": "book",
+        "valid_label": true
+      },
+      "runtime_error": null,
+      "sample_id": "book_68012",
+      "selection_role": "demo",
+      "valid_label_matches_python": true
+    },
+    {
+      "cactus": {
+        "normalized_gloss": "fine",
+        "raw_model_output": "fine",
+        "valid_label": true
+      },
+      "cactus_response_metadata": {
+        "cloud_handoff": false,
+        "confidence": 0.9924,
+        "decode_tokens": 1,
+        "decode_tps": 0.0,
+        "function_calls": [],
+        "prefill_tokens": 1852,
+        "prefill_tps": 344.93,
+        "ram_usage_mb": 436.74,
+        "segments": [],
+        "time_to_first_token_ms": 5369.22,
+        "total_time_ms": 5437.6,
+        "total_tokens": 1853
+      },
+      "correct_matches_expected": true,
+      "expected_gloss": "fine",
+      "normalized_gloss_matches_python": true,
+      "python_reference": {
+        "normalized_gloss": "fine",
+        "raw_model_output": "fine",
+        "valid_label": true
+      },
+      "runtime_error": null,
+      "sample_id": "fine_70234",
+      "selection_role": "demo",
+      "valid_label_matches_python": true
+    },
+    {
+      "cactus": {
+        "normalized_gloss": "cow",
+        "raw_model_output": "cow",
+        "valid_label": true
+      },
+      "cactus_response_metadata": {
+        "cloud_handoff": false,
+        "confidence": 0.995,
+        "decode_tokens": 1,
+        "decode_tps": 0.0,
+        "function_calls": [],
+        "prefill_tokens": 1995,
+        "prefill_tps": 339.0,
+        "ram_usage_mb": 416.44,
+        "segments": [],
+        "time_to_first_token_ms": 5885.0,
+        "total_time_ms": 5961.22,
+        "total_tokens": 1996
+      },
+      "correct_matches_expected": true,
+      "expected_gloss": "cow",
+      "normalized_gloss_matches_python": true,
+      "python_reference": {
+        "normalized_gloss": "cow",
+        "raw_model_output": "cow",
+        "valid_label": true
+      },
+      "runtime_error": null,
+      "sample_id": "cow_13681",
+      "selection_role": "demo",
+      "valid_label_matches_python": true
+    },
+    {
+      "cactus": {
+        "normalized_gloss": "fish",
+        "raw_model_output": "fish",
+        "valid_label": true
+      },
+      "cactus_response_metadata": {
+        "cloud_handoff": false,
+        "confidence": 0.9997,
+        "decode_tokens": 1,
+        "decode_tps": 0.0,
+        "function_calls": [],
+        "prefill_tokens": 1893,
+        "prefill_tps": 340.48,
+        "ram_usage_mb": 416.52,
+        "segments": [],
+        "time_to_first_token_ms": 5559.82,
+        "total_time_ms": 5630.85,
+        "total_tokens": 1894
+      },
+      "correct_matches_expected": true,
+      "expected_gloss": "fish",
+      "normalized_gloss_matches_python": true,
+      "python_reference": {
+        "normalized_gloss": "fish",
+        "raw_model_output": "fish",
+        "valid_label": true
+      },
+      "runtime_error": null,
+      "sample_id": "fish_22109",
+      "selection_role": "demo",
+      "valid_label_matches_python": true
+    },
+    {
+      "cactus": {
+        "normalized_gloss": "city",
+        "raw_model_output": "city",
+        "valid_label": true
+      },
+      "cactus_response_metadata": {
+        "cloud_handoff": false,
+        "confidence": 0.9997,
+        "decode_tokens": 1,
+        "decode_tps": 0.0,
+        "function_calls": [],
+        "prefill_tokens": 1935,
+        "prefill_tps": 335.85,
+        "ram_usage_mb": 406.96,
+        "segments": [],
+        "time_to_first_token_ms": 5761.51,
+        "total_time_ms": 5837.25,
+        "total_tokens": 1936
+      },
+      "correct_matches_expected": true,
+      "expected_gloss": "city",
+      "normalized_gloss_matches_python": true,
+      "python_reference": {
+        "normalized_gloss": "city",
+        "raw_model_output": "city",
+        "valid_label": true
+      },
+      "runtime_error": null,
+      "sample_id": "city_10899",
+      "selection_role": "demo",
+      "valid_label_matches_python": true
+    },
+    {
+      "cactus": {
+        "normalized_gloss": "like",
+        "raw_model_output": "like",
+        "valid_label": true
+      },
+      "cactus_response_metadata": {
+        "cloud_handoff": false,
+        "confidence": 1.0,
+        "decode_tokens": 1,
+        "decode_tps": 0.0,
+        "function_calls": [],
+        "prefill_tokens": 1880,
+        "prefill_tps": 333.75,
+        "ram_usage_mb": 374.65,
+        "segments": [],
+        "time_to_first_token_ms": 5632.92,
+        "total_time_ms": 5706.14,
+        "total_tokens": 1881
+      },
+      "correct_matches_expected": true,
+      "expected_gloss": "like",
+      "normalized_gloss_matches_python": true,
+      "python_reference": {
+        "normalized_gloss": "like",
+        "raw_model_output": "like",
+        "valid_label": true
+      },
+      "runtime_error": null,
+      "sample_id": "like_33277",
+      "selection_role": "demo",
+      "valid_label_matches_python": true
+    },
+    {
+      "cactus": {
+        "normalized_gloss": "blue",
+        "raw_model_output": "blue",
+        "valid_label": true
+      },
+      "cactus_response_metadata": {
+        "cloud_handoff": false,
+        "confidence": 0.983,
+        "decode_tokens": 1,
+        "decode_tps": 0.0,
+        "function_calls": [],
+        "prefill_tokens": 1873,
+        "prefill_tps": 334.3,
+        "ram_usage_mb": 366.61,
+        "segments": [],
+        "time_to_first_token_ms": 5602.81,
+        "total_time_ms": 5676.3,
+        "total_tokens": 1874
+      },
+      "correct_matches_expected": true,
+      "expected_gloss": "blue",
+      "normalized_gloss_matches_python": true,
+      "python_reference": {
+        "normalized_gloss": "blue",
+        "raw_model_output": "blue",
+        "valid_label": true
+      },
+      "runtime_error": null,
+      "sample_id": "blue_06840",
+      "selection_role": "demo",
+      "valid_label_matches_python": true
+    }
+  ],
+  "scope": "cactus_prompt_control_parity",
+  "summary": {
+    "all_matches": false,
+    "match_count": 19,
+    "mismatch_count": 1,
+    "runtime_error_count": 0,
+    "sample_count": 20
+  }
+}

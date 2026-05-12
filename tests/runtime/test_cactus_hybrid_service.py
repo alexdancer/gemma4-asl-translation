@@ -3,7 +3,9 @@ from __future__ import annotations
 import io
 import json
 
-from src.cactus_hybrid_service import hybrid_wsgi_app
+from urllib import error as urlerror
+
+from src.cactus_hybrid_service import hybrid_wsgi_app, _run_hybrid
 
 
 def _environ(*, body: dict, auth: str = "Bearer svc-key") -> dict:
@@ -238,3 +240,80 @@ def test_hybrid_service_rejects_confidence_out_of_range(monkeypatch):
     status, payload = _decode(hybrid_wsgi_app(env))
     assert status == "502 Bad Gateway"
     assert payload["error_code"] == "PROOF_FIELDS_INVALID"
+
+
+def test_run_hybrid_auto_falls_back_to_completion_when_chat_model_not_supported(monkeypatch):
+    monkeypatch.setenv("ASL_HF_ROUTE_MODE", "auto")
+
+    class _HttpOk:
+        def __init__(self, payload: dict):
+            self._payload = json.dumps(payload).encode("utf-8")
+
+        def read(self):
+            return self._payload
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+    def fake_urlopen(req, timeout=0):
+        if req.full_url.endswith("/chat/completions"):
+            body = json.dumps(
+                {
+                    "error": {
+                        "message": "The requested model is not a chat model.",
+                        "code": "model_not_supported",
+                    }
+                }
+            ).encode("utf-8")
+            raise urlerror.HTTPError(req.full_url, 400, "Bad Request", hdrs=None, fp=io.BytesIO(body))
+        if req.full_url.endswith("/completions"):
+            return _HttpOk({"choices": [{"text": "HELLO"}]})
+        raise AssertionError("unexpected url")
+
+    monkeypatch.setenv("ASL_HF_OPENAI_BASE_URL", "https://router.huggingface.co/v1")
+    monkeypatch.setenv("ASL_HF_TOKEN", "hf_test")
+    monkeypatch.setattr("src.cactus_hybrid_service.urlrequest.urlopen", fake_urlopen)
+
+    result = _run_hybrid(
+        payload={"request_id": "req-1", "model": "AlexD281/asl-gemma4-e2b-q64-top50-merged-16bit", "input": {"filename": "a.mp4"}},
+        timeout_seconds=20.0,
+    )
+    assert result["prediction"] == "HELLO"
+    assert result["cloud_handoff"] is True
+
+
+def test_run_hybrid_completion_mode_uses_completions(monkeypatch):
+    monkeypatch.setenv("ASL_HF_ROUTE_MODE", "completion")
+
+    class _HttpOk:
+        def __init__(self, payload: dict):
+            self._payload = json.dumps(payload).encode("utf-8")
+
+        def read(self):
+            return self._payload
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+    calls = []
+
+    def fake_urlopen(req, timeout=0):
+        calls.append(req.full_url)
+        return _HttpOk({"choices": [{"text": "WORLD"}]})
+
+    monkeypatch.setenv("ASL_HF_OPENAI_BASE_URL", "https://router.huggingface.co/v1")
+    monkeypatch.setenv("ASL_HF_TOKEN", "hf_test")
+    monkeypatch.setattr("src.cactus_hybrid_service.urlrequest.urlopen", fake_urlopen)
+
+    result = _run_hybrid(
+        payload={"request_id": "req-2", "model": "m", "input": {"filename": "a.mp4"}},
+        timeout_seconds=20.0,
+    )
+    assert calls and calls[0].endswith("/completions")
+    assert result["prediction"] == "WORLD"

@@ -51,6 +51,15 @@ def _default_pose_pipeline(*, request_id: str, frame_extraction):
     )
 
 
+def _proof_fields(*, model_id: str = "cactus-asl-v2", model_version: str = "v1", runtime_mode: str = "cactus_engine", cloud_handoff: bool = True) -> dict:
+    return {
+        "runtime_mode": runtime_mode,
+        "cloud_handoff": cloud_handoff,
+        "model_id": model_id,
+        "model_version": model_version,
+    }
+
+
 def _base_environ(*, method: str = "POST", path: str = "/v1/translate-sign", content_type: str | None = None, body: bytes | None = None, request_id: str | None = None) -> dict:
     environ = {
         "REQUEST_METHOD": method,
@@ -97,6 +106,7 @@ def test_translate_sign_accepts_multipart_and_returns_real_schema(tmp_path: Path
             "translation": "Hello",
             "confidence": 0.93,
             "latency_ms": 123,
+            **_proof_fields(),
         }
 
     environ = {
@@ -127,6 +137,10 @@ def test_translate_sign_accepts_multipart_and_returns_real_schema(tmp_path: Path
     assert payload["translation"] == "Hello"
     assert payload["confidence"] == 0.93
     assert payload["latency_ms"] == 123
+    assert payload["runtime_mode"] == "cactus_engine"
+    assert payload["cloud_handoff"] is True
+    assert payload["model_id"] == "cactus-asl-v2"
+    assert payload["model_version"] == "v1"
     assert payload["video_ingest"]["normalization_applied"] is False
     assert payload["frame_extraction"]["frame_count"] == 30
     assert payload["frame_extraction"]["effective_fps"] == 30.0
@@ -245,6 +259,7 @@ def test_translate_sign_telemetry_failure_is_fail_open(monkeypatch) -> None:
             "translation": "Hello",
             "confidence": 0.93,
             "latency_ms": 42,
+            **_proof_fields(),
         }
 
     def explode_append_event(_event):
@@ -287,7 +302,7 @@ def test_default_cloud_infer_sends_real_base64(monkeypatch) -> None:
             return False
 
         def read(self):
-            return b'{"gloss":"HELLO","translation":"Hello","confidence":0.9,"latency_ms":12}'
+            return b'{"gloss":"HELLO","translation":"Hello","confidence":0.9,"latency_ms":12,"runtime_mode":"cactus_engine","cloud_handoff":true,"model_id":"cactus-asl-v2","model_version":"v1"}'
 
     def fake_urlopen(req, timeout):
         captured["body"] = req.data
@@ -316,7 +331,7 @@ def test_default_cloud_infer_includes_pose_summary_when_pose_handoff_present(mon
             return False
 
         def read(self):
-            return b'{"translation":"Hello","confidence":0.9,"latency_ms":12}'
+            return b'{"translation":"Hello","confidence":0.9,"latency_ms":12,"runtime_mode":"cactus_engine","cloud_handoff":true,"model_id":"cactus-asl-v2","model_version":"v1"}'
 
     def fake_urlopen(req, timeout):
         captured["body"] = req.data
@@ -356,7 +371,7 @@ def test_default_cloud_infer_includes_pose_sequence_when_enabled(monkeypatch) ->
             return False
 
         def read(self):
-            return b'{"translation":"Hello","confidence":0.9,"latency_ms":12}'
+            return b'{"translation":"Hello","confidence":0.9,"latency_ms":12,"runtime_mode":"cactus_engine","cloud_handoff":true,"model_id":"cactus-asl-v2","model_version":"v1"}'
 
     def fake_urlopen(req, timeout):
         captured["body"] = req.data
@@ -395,7 +410,7 @@ def test_default_cloud_infer_accepts_zero_confidence(monkeypatch) -> None:
             return False
 
         def read(self):
-            return b'{"translation":"Hello","confidence":0,"latency_ms":12}'
+            return b'{"translation":"Hello","confidence":0,"latency_ms":12,"runtime_mode":"cactus_engine","cloud_handoff":true,"model_id":"cactus-asl-v2","model_version":"v1"}'
 
     def fake_urlopen(req, timeout):
         return DummyResp()
@@ -473,6 +488,7 @@ def test_translate_sign_emits_video_ingest_metadata_and_uses_canonical_bytes() -
             "translation": "Hello",
             "confidence": 0.88,
             "latency_ms": 111,
+            **_proof_fields(),
         }
 
     environ = {
@@ -636,6 +652,7 @@ def test_translate_sign_accepts_next_rotation_key(monkeypatch) -> None:
         "translation": "Hello",
         "confidence": 0.9,
         "latency_ms": 5,
+        **_proof_fields(),
     }
     status, _headers, raw = translate_sign_wsgi_app(environ)
     payload = json.loads(raw.decode("utf-8"))
@@ -656,6 +673,7 @@ def test_translate_sign_rate_limits_per_key(monkeypatch) -> None:
         "translation": "Hello",
         "confidence": 0.9,
         "latency_ms": 5,
+        **_proof_fields(),
     }
 
     status, _headers, raw = translate_sign_wsgi_app(environ)
@@ -684,6 +702,7 @@ def test_translate_sign_accepts_x_api_key_header(monkeypatch) -> None:
         "translation": "Hello",
         "confidence": 0.9,
         "latency_ms": 5,
+        **_proof_fields(),
     }
 
     status, _headers, raw = translate_sign_wsgi_app(environ)
@@ -704,6 +723,7 @@ def test_translate_sign_maps_multiword_contract_fields() -> None:
         "low_confidence": False,
         "confidence": 0.9,
         "latency_ms": 12,
+        **_proof_fields(),
     }
 
     status, _headers, raw = translate_sign_wsgi_app(environ)
@@ -728,6 +748,7 @@ def test_translate_sign_defaults_multiword_fields_when_provider_returns_translat
         "translation": "Hello",
         "confidence": 0.77,
         "latency_ms": 7,
+        **_proof_fields(),
     }
 
     status, _headers, raw = translate_sign_wsgi_app(environ)
@@ -747,6 +768,7 @@ def test_translate_sign_returns_422_when_transcript_word_timestamp_invalid() -> 
         "request_id": kwargs["request_id"],
         "transcript_words": [{"word": "HELLO", "start_ms": "bad", "end_ms": 100, "confidence": 0.9}],
         "confidence": 0.9,
+        **_proof_fields(),
     }
 
     status, _headers, raw = translate_sign_wsgi_app(environ)
@@ -764,6 +786,7 @@ def test_translate_sign_parses_string_low_confidence_false() -> None:
         "confidence": 0.77,
         "low_confidence": "false",
         "latency_ms": 7,
+        **_proof_fields(),
     }
 
     status, _headers, raw = translate_sign_wsgi_app(environ)
@@ -771,4 +794,57 @@ def test_translate_sign_parses_string_low_confidence_false() -> None:
 
     assert status == "200 OK"
     assert payload["low_confidence"] is False
+
+
+def test_translate_sign_rejects_missing_upstream_proof_fields() -> None:
+    environ = _base_environ(request_id="rid-proof-missing")
+    environ["cloud_infer_callable"] = lambda **kwargs: {
+        "request_id": kwargs["request_id"],
+        "translation": "Hello",
+        "confidence": 0.88,
+        "latency_ms": 9,
+    }
+
+    status, _headers, raw = translate_sign_wsgi_app(environ)
+    payload = json.loads(raw.decode("utf-8"))
+
+    assert status == "502 Bad Gateway"
+    assert payload["error_code"] == "INFERENCE_PROOF_MISSING"
+    assert payload["retryable"] is False
+
+
+def test_translate_sign_rejects_invalid_upstream_proof_field_types() -> None:
+    environ = _base_environ(request_id="rid-proof-invalid")
+    environ["cloud_infer_callable"] = lambda **kwargs: {
+        "request_id": kwargs["request_id"],
+        "translation": "Hello",
+        "confidence": 0.88,
+        "latency_ms": 9,
+        **_proof_fields(cloud_handoff="true"),
+    }
+
+    status, _headers, raw = translate_sign_wsgi_app(environ)
+    payload = json.loads(raw.decode("utf-8"))
+
+    assert status == "502 Bad Gateway"
+    assert payload["error_code"] == "INFERENCE_PROOF_INVALID"
+    assert payload["retryable"] is False
+
+
+def test_translate_sign_rejects_upstream_request_id_mismatch() -> None:
+    environ = _base_environ(request_id="rid-proof-match")
+    environ["cloud_infer_callable"] = lambda **kwargs: {
+        "request_id": "different-request-id",
+        "translation": "Hello",
+        "confidence": 0.88,
+        "latency_ms": 9,
+        **_proof_fields(),
+    }
+
+    status, _headers, raw = translate_sign_wsgi_app(environ)
+    payload = json.loads(raw.decode("utf-8"))
+
+    assert status == "502 Bad Gateway"
+    assert payload["error_code"] == "INFERENCE_PROOF_INVALID"
+    assert payload["retryable"] is False
 

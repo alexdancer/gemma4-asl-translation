@@ -25,6 +25,14 @@ from typing import Any, Callable
 from urllib import error as urlerror
 from urllib import request as urlrequest
 
+
+class CloudHandoffError(RuntimeError):
+    """Structured upstream handoff error."""
+
+    def __init__(self, message: str, *, code: str = "CLOUD_HANDOFF_FAILED") -> None:
+        super().__init__(message)
+        self.code = code
+
 Response = tuple[str, list[tuple[str, str]], bytes]
 HybridInferCallable = Callable[..., dict[str, Any]]
 
@@ -86,33 +94,19 @@ def _require_auth(context: RequestContext) -> bool:
     return hmac.compare_digest(got, expected)
 
 
-def _cloud_handoff_openai_compatible(*, request_id: str, model: str, input_payload: dict[str, Any], timeout_seconds: float) -> dict[str, Any]:
+def _require_hf_config() -> tuple[str, str, str]:
     base_url = os.environ.get("ASL_HF_OPENAI_BASE_URL", "").strip()
     hf_token = os.environ.get("ASL_HF_TOKEN", "").strip()
     model_version = os.environ.get("ASL_CACTUS_MODEL_VERSION", "v1")
-
     if not base_url or not hf_token:
-        raise RuntimeError("HF handoff is not configured")
+        raise CloudHandoffError("HF handoff is not configured")
+    return base_url, hf_token, model_version
 
-    endpoint = base_url.rstrip("/") + "/chat/completions"
-    prompt = {
-        "instruction": "Translate ASL payload into short text.",
-        "input": input_payload,
-    }
-    body = json.dumps(
-        {
-            "model": model,
-            "messages": [
-                {"role": "system", "content": "You are an ASL translator."},
-                {"role": "user", "content": json.dumps(prompt)},
-            ],
-            "temperature": 0,
-        }
-    ).encode("utf-8")
 
+def _hf_post_json(*, endpoint: str, body: dict[str, Any], hf_token: str, request_id: str, timeout_seconds: float) -> dict[str, Any]:
     req = urlrequest.Request(
         endpoint,
-        data=body,
+        data=json.dumps(body).encode("utf-8"),
         method="POST",
         headers={
             "Content-Type": "application/json",
@@ -124,26 +118,111 @@ def _cloud_handoff_openai_compatible(*, request_id: str, model: str, input_paylo
         with urlrequest.urlopen(req, timeout=timeout_seconds) as resp:
             raw = resp.read().decode("utf-8")
     except TimeoutError as exc:
-        raise RuntimeError("cloud handoff timeout") from exc
+        raise CloudHandoffError("cloud handoff timeout") from exc
+    except urlerror.HTTPError as exc:
+        raw = exc.read().decode("utf-8", errors="replace") if hasattr(exc, "read") else ""
+        try:
+            decoded = json.loads(raw) if raw else {}
+        except json.JSONDecodeError:
+            decoded = {}
+        err = decoded.get("error") if isinstance(decoded, dict) else None
+        code = ""
+        message = ""
+        if isinstance(err, dict):
+            code = str(err.get("code") or "").strip()
+            message = str(err.get("message") or "").strip()
+        detail = message or raw or str(exc.reason)
+        raise CloudHandoffError(f"cloud handoff http {exc.code}: {detail}", code=code or "CLOUD_HANDOFF_FAILED") from exc
     except urlerror.URLError as exc:
-        raise RuntimeError(f"cloud handoff failed: {exc.reason}") from exc
+        raise CloudHandoffError(f"cloud handoff failed: {exc.reason}") from exc
 
     try:
-        decoded = json.loads(raw)
+        return json.loads(raw)
     except json.JSONDecodeError as exc:
-        raise RuntimeError("cloud handoff returned malformed json") from exc
+        raise CloudHandoffError("cloud handoff returned malformed json") from exc
 
+
+def _extract_prediction_from_chat(decoded: dict[str, Any]) -> str:
     choices = decoded.get("choices") if isinstance(decoded, dict) else None
     if not isinstance(choices, list) or not choices:
-        raise RuntimeError("cloud handoff missing choices")
+        raise CloudHandoffError("cloud handoff missing choices")
     message = choices[0].get("message") if isinstance(choices[0], dict) else None
     content = message.get("content") if isinstance(message, dict) else None
     if not content:
-        raise RuntimeError("cloud handoff missing completion content")
+        raise CloudHandoffError("cloud handoff missing completion content")
+    return str(content).strip()
 
+
+def _extract_prediction_from_completion(decoded: dict[str, Any]) -> str:
+    choices = decoded.get("choices") if isinstance(decoded, dict) else None
+    if isinstance(choices, list) and choices:
+        text = choices[0].get("text") if isinstance(choices[0], dict) else None
+        if isinstance(text, str) and text.strip():
+            return text.strip()
+    generated_text = decoded.get("generated_text") if isinstance(decoded, dict) else None
+    if isinstance(generated_text, str) and generated_text.strip():
+        return generated_text.strip()
+    raise CloudHandoffError("cloud handoff missing generated text")
+
+
+def _cloud_handoff_chat(*, request_id: str, model: str, input_payload: dict[str, Any], timeout_seconds: float) -> dict[str, Any]:
+    base_url, hf_token, model_version = _require_hf_config()
+    endpoint = base_url.rstrip("/") + "/chat/completions"
+    prompt = {
+        "instruction": "Translate ASL payload into short text.",
+        "input": input_payload,
+    }
+    decoded = _hf_post_json(
+        endpoint=endpoint,
+        body={
+            "model": model,
+            "messages": [
+                {"role": "system", "content": "You are an ASL translator."},
+                {"role": "user", "content": json.dumps(prompt)},
+            ],
+            "temperature": 0,
+        },
+        hf_token=hf_token,
+        request_id=request_id,
+        timeout_seconds=timeout_seconds,
+    )
+    prediction = _extract_prediction_from_chat(decoded)
     return {
         "request_id": request_id,
-        "prediction": str(content).strip(),
+        "prediction": prediction,
+        "confidence": 0.5,
+        "runtime_mode": "cactus_engine",
+        "cloud_handoff": True,
+        "model_id": model,
+        "model_version": model_version,
+    }
+
+
+def _cloud_handoff_completion(*, request_id: str, model: str, input_payload: dict[str, Any], timeout_seconds: float) -> dict[str, Any]:
+    base_url, hf_token, model_version = _require_hf_config()
+    endpoint = base_url.rstrip("/") + "/completions"
+    prompt = json.dumps(
+        {
+            "instruction": "Translate ASL payload into short text.",
+            "input": input_payload,
+        }
+    )
+    decoded = _hf_post_json(
+        endpoint=endpoint,
+        body={
+            "model": model,
+            "prompt": prompt,
+            "temperature": 0,
+            "max_tokens": 128,
+        },
+        hf_token=hf_token,
+        request_id=request_id,
+        timeout_seconds=timeout_seconds,
+    )
+    prediction = _extract_prediction_from_completion(decoded)
+    return {
+        "request_id": request_id,
+        "prediction": prediction,
         "confidence": 0.5,
         "runtime_mode": "cactus_engine",
         "cloud_handoff": True,
@@ -161,13 +240,42 @@ def _run_hybrid(*, payload: dict[str, Any], timeout_seconds: float) -> dict[str,
     if not isinstance(input_payload, dict):
         raise ValueError("missing input payload")
 
-    # Phase 1: authoritative route is cloud handoff via HF OpenAI-compatible endpoint.
-    return _cloud_handoff_openai_compatible(
-        request_id=request_id,
-        model=model_id,
-        input_payload=input_payload,
-        timeout_seconds=timeout_seconds,
-    )
+    route_mode = os.environ.get("ASL_HF_ROUTE_MODE", "auto").strip().lower() or "auto"
+    if route_mode not in {"auto", "chat", "completion"}:
+        raise ValueError("ASL_HF_ROUTE_MODE must be one of: auto, chat, completion")
+
+    if route_mode == "chat":
+        return _cloud_handoff_chat(
+            request_id=request_id,
+            model=model_id,
+            input_payload=input_payload,
+            timeout_seconds=timeout_seconds,
+        )
+    if route_mode == "completion":
+        return _cloud_handoff_completion(
+            request_id=request_id,
+            model=model_id,
+            input_payload=input_payload,
+            timeout_seconds=timeout_seconds,
+        )
+
+    # auto: prefer chat, fall back to completion when model is not chat-capable.
+    try:
+        return _cloud_handoff_chat(
+            request_id=request_id,
+            model=model_id,
+            input_payload=input_payload,
+            timeout_seconds=timeout_seconds,
+        )
+    except CloudHandoffError as exc:
+        if exc.code == "model_not_supported":
+            return _cloud_handoff_completion(
+                request_id=request_id,
+                model=model_id,
+                input_payload=input_payload,
+                timeout_seconds=timeout_seconds,
+            )
+        raise
 
 
 def _normalize_proof_response(*, request_id: str, result: Any, started: float) -> dict[str, Any]:

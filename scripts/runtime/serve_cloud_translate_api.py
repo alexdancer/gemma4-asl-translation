@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Run the ASL cloud translate WSGI API locally.
+"""Run the ASL cloud translate FastAPI app locally.
 
 Usage:
   python scripts/runtime/serve_cloud_translate_api.py
@@ -11,21 +11,13 @@ from __future__ import annotations
 import argparse
 import sys
 from pathlib import Path
-from wsgiref.simple_server import make_server
+import uvicorn
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from src.cloud_translate_api import translate_sign_wsgi_app
-
-
-def wsgi_app(environ, start_response):
-    body = environ["wsgi.input"].read(int(environ.get("CONTENT_LENGTH") or 0))
-    environ["wsgi.input_body"] = body
-    status, headers, raw = translate_sign_wsgi_app(environ)
-    start_response(status, headers)
-    return [raw]
+from src.fastapi_apps import cloud_translate_app
 
 
 def main() -> None:
@@ -35,7 +27,7 @@ def main() -> None:
     args = parser.parse_args()
 
     print(f"serving /v1/translate-sign on http://{args.host}:{args.port}", flush=True)
-    make_server(args.host, args.port, wsgi_app).serve_forever()
+    uvicorn.run(cloud_translate_app, host=args.host, port=args.port)
 
 
 if __name__ == "__main__":

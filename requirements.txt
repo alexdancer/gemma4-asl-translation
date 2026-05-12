@@ -16,3 +16,5 @@ matplotlib
 jupyter
 pyyaml
 pytest
+fastapi
+uvicorn
