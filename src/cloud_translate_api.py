@@ -27,6 +27,7 @@ from typing import Any, Callable
 from urllib import error as urlerror
 from urllib import request as urlrequest
 
+from src.shared.upstream_contract import ProofValidationError, validate_proof_fields
 from src.telemetry_slo import TelemetryEvent, append_event
 from src.frame_extraction import (
     FrameExtractionError,
@@ -319,71 +320,21 @@ def _build_inference_input_payload(*, filename: str, pose_handoff: Any, include_
 
 
 def _validate_upstream_proof_fields(*, result: dict[str, Any], request_id: str) -> dict[str, Any]:
-    """Validate required Cactus proof fields from upstream response.
-
-    Required fields: runtime_mode (non-empty str), cloud_handoff (bool),
-    model_id (non-empty str), model_version (non-empty str).
-    If upstream response includes request_id, it must match the boundary request_id.
-    """
-
-    required_fields = ("runtime_mode", "cloud_handoff", "model_id", "model_version")
-    missing = [field for field in required_fields if field not in result]
-    if missing:
+    try:
+        proof = validate_proof_fields(result=result, request_id=request_id)
+    except ProofValidationError as exc:
         raise CloudInferError(
-            "INFERENCE_PROOF_MISSING",
-            f"Missing upstream proof fields: {', '.join(missing)}",
+            "INFERENCE_PROOF_MISSING" if exc.kind == "missing" else "INFERENCE_PROOF_INVALID",
+            str(exc),
             retryable=False,
             status="502 Bad Gateway",
-        )
-
-    runtime_mode = result.get("runtime_mode")
-    model_id = result.get("model_id")
-    model_version = result.get("model_version")
-    cloud_handoff = result.get("cloud_handoff")
-
-    if not isinstance(runtime_mode, str) or not runtime_mode.strip():
-        raise CloudInferError(
-            "INFERENCE_PROOF_INVALID",
-            "Invalid upstream proof field: runtime_mode",
-            retryable=False,
-            status="502 Bad Gateway",
-        )
-    if not isinstance(model_id, str) or not model_id.strip():
-        raise CloudInferError(
-            "INFERENCE_PROOF_INVALID",
-            "Invalid upstream proof field: model_id",
-            retryable=False,
-            status="502 Bad Gateway",
-        )
-    if not isinstance(model_version, str) or not model_version.strip():
-        raise CloudInferError(
-            "INFERENCE_PROOF_INVALID",
-            "Invalid upstream proof field: model_version",
-            retryable=False,
-            status="502 Bad Gateway",
-        )
-    if not isinstance(cloud_handoff, bool):
-        raise CloudInferError(
-            "INFERENCE_PROOF_INVALID",
-            "Invalid upstream proof field: cloud_handoff",
-            retryable=False,
-            status="502 Bad Gateway",
-        )
-
-    upstream_request_id = str(result.get("request_id") or "").strip()
-    if upstream_request_id and upstream_request_id != request_id:
-        raise CloudInferError(
-            "INFERENCE_PROOF_INVALID",
-            "Invalid upstream proof field: request_id mismatch",
-            retryable=False,
-            status="502 Bad Gateway",
-        )
+        ) from exc
 
     return {
-        "runtime_mode": runtime_mode.strip(),
-        "cloud_handoff": cloud_handoff,
-        "model_id": model_id.strip(),
-        "model_version": model_version.strip(),
+        "runtime_mode": proof.runtime_mode,
+        "cloud_handoff": proof.cloud_handoff,
+        "model_id": proof.model_id,
+        "model_version": proof.model_version,
     }
 
 

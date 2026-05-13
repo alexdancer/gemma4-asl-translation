@@ -24,6 +24,7 @@ from dataclasses import dataclass
 from typing import Any, Callable
 from urllib import error as urlerror
 from urllib import request as urlrequest
+from src.shared.upstream_contract import normalize_upstream_failure_evidence
 
 
 class CloudHandoffError(RuntimeError):
@@ -391,33 +392,35 @@ def hybrid_wsgi_app(environ: dict[str, Any], timeout_seconds: float = 20.0) -> R
     except ValueError as exc:
         return _error("INVALID_REQUEST", str(exc), request_id, "400 Bad Request", False)
     except CloudHandoffError as exc:
+        evidence = normalize_upstream_failure_evidence(
+            upstream_status=exc.upstream_status,
+            upstream_code=exc.code,
+            upstream_message=str(exc),
+            upstream_request_id=exc.upstream_request_id,
+        )
         return _error_with_evidence(
             "UPSTREAM_FAILURE",
             "Cloud handoff request failed",
             request_id,
             "503 Service Unavailable",
             True,
-            evidence={
-                "upstream_status": exc.upstream_status,
-                "upstream_code": exc.code,
-                "upstream_message": str(exc),
-                "upstream_request_id": exc.upstream_request_id or None,
-            },
+            evidence=evidence.to_dict(),
         )
     except Exception:
         # Fail closed on handoff failure.
+        evidence = normalize_upstream_failure_evidence(
+            upstream_status=None,
+            upstream_code="CLOUD_HANDOFF_FAILED",
+            upstream_message="Cloud handoff request failed",
+            upstream_request_id=None,
+        )
         return _error_with_evidence(
             "UPSTREAM_FAILURE",
             "Cloud handoff request failed",
             request_id,
             "503 Service Unavailable",
             True,
-            evidence={
-                "upstream_status": None,
-                "upstream_code": "CLOUD_HANDOFF_FAILED",
-                "upstream_message": "Cloud handoff request failed",
-                "upstream_request_id": None,
-            },
+            evidence=evidence.to_dict(),
         )
 
     try:
