@@ -70,15 +70,19 @@ Do not change RN route contract while updating endpoint wiring:
 ## 4) Verification commands (health, contract, proof)
 
 > These are executable operator checks. Replace placeholders before running.
+>
+> Variable convention used below:
+> - `HF_BASE_URL` = endpoint origin **without** `/v1` suffix (example: `https://<endpoint-host>`)
+> - chat contract check appends `/v1/chat/completions` explicitly.
 
 ### 4.1 HF endpoint health/readiness
 
 ```bash
-curl -sS "$HF_BASE_URL/healthz" | jq .
+curl -sS "$HF_BASE_URL/healthz" | jq -e '.ok == true and .ready == true'
 ```
 
 Pass signal:
-- JSON contains `ok: true` and `ready: true`.
+- command exits `0`.
 
 ### 4.2 HF endpoint chat contract (minimal OpenAI shape)
 
@@ -92,11 +96,11 @@ curl -sS -X POST "$HF_BASE_URL/v1/chat/completions" \
       {"role": "system", "content": "Return only uppercase gloss text."},
       {"role": "user", "content": "pose_summary: frame_count=16"}
     ]
-  }' | jq .
+  }' | jq -e '.choices[0].message.content != null and .choices[0].message.content != ""'
 ```
 
 Pass signal:
-- Response has a first choice message content at `.choices[0].message.content`.
+- command exits `0`.
 
 ### 4.3 End-to-end proof fields at RN-facing API boundary
 
