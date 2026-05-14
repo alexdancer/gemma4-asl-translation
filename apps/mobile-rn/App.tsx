@@ -16,7 +16,8 @@ import {mapErrorMessage, TranslateFailure, isBuildConfigReady} from './src/infer
 
 type TranslateSuccess = {
   request_id: string;
-  gloss: string;
+  gloss?: string;
+  prediction?: string;
   translation: string;
   confidence: number;
   latency_ms: number;
@@ -128,7 +129,11 @@ function App(): React.JSX.Element {
 
       if (submitResponse.ok && (submitJson as TranslateSuccess).translation) {
         const ok = submitJson as TranslateSuccess;
-        setResult(ok);
+        const normalized: TranslateSuccess = {
+          ...ok,
+          gloss: ok.gloss ?? ok.prediction ?? ok.translation,
+        };
+        setResult(normalized);
         setStatus(`Translation complete (${ok.latency_ms} ms).`);
         return;
       }
@@ -152,7 +157,11 @@ function App(): React.JSX.Element {
 
           if (pollResponse.ok && (pollJson as TranslateSuccess).translation) {
             const ok = pollJson as TranslateSuccess;
-            setResult(ok);
+            const normalized: TranslateSuccess = {
+              ...ok,
+              gloss: ok.gloss ?? ok.prediction ?? ok.translation,
+            };
+            setResult(normalized);
             setStatus(`Translation complete (${ok.latency_ms} ms).`);
             return;
           }

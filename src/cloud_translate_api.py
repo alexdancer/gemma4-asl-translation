@@ -25,6 +25,7 @@ from email.parser import BytesParser
 from email.policy import default
 from typing import Any, Callable
 from urllib import error as urlerror
+from urllib import parse as urlparse
 from urllib import request as urlrequest
 
 from src.shared.upstream_contract import ProofValidationError, validate_proof_fields
@@ -519,21 +520,42 @@ def _default_cloud_infer(
             )
         )
 
+    parsed_endpoint = urlparse.urlparse(endpoint)
+    endpoint_path = parsed_endpoint.path.rstrip("/")
+    uses_translate_sign_contract = endpoint_path.endswith("/v1/translate-sign")
+
     payload = {
         "request_id": request_id,
         "model": model_name,
         "input": input_payload,
     }
-    body = json.dumps(payload).encode("utf-8")
+
+    if uses_translate_sign_contract:
+        boundary = f"asl-boundary-{request_id}"
+        body = (
+            f"--{boundary}\r\n"
+            f"Content-Disposition: form-data; name=\"video\"; filename=\"{filename}\"\r\n"
+            "Content-Type: application/octet-stream\r\n\r\n"
+        ).encode("utf-8") + video_bytes + f"\r\n--{boundary}--\r\n".encode("utf-8")
+        content_type = f"multipart/form-data; boundary={boundary}"
+    else:
+        body = json.dumps(payload).encode("utf-8")
+        content_type = "application/json"
+
+    upstream_app_key = os.environ.get("ASL_CLOUD_UPSTREAM_APP_KEY", "").strip()
+    req_headers = {
+        "Content-Type": content_type,
+        "Authorization": f"Bearer {api_key}",
+        "X-Request-ID": request_id,
+    }
+    if upstream_app_key:
+        req_headers["X-API-Key"] = upstream_app_key
+
     req = urlrequest.Request(
         endpoint,
         data=body,
         method="POST",
-        headers={
-            "Content-Type": "application/json",
-            "Authorization": f"Bearer {api_key}",
-            "X-Request-ID": request_id,
-        },
+        headers=req_headers,
     )
 
     try:
@@ -541,6 +563,46 @@ def _default_cloud_infer(
             raw = resp.read().decode("utf-8")
     except TimeoutError as exc:
         raise TimeoutError("upstream timeout") from exc
+    except urlerror.HTTPError as exc:
+        try:
+            raw_error = exc.read().decode("utf-8") if exc.fp is not None else ""
+        except Exception:
+            raw_error = ""
+
+        upstream_code = "UPSTREAM_FAILURE"
+        upstream_message = f"upstream request failed: {exc.reason}"
+        upstream_retryable = True
+        upstream_details: dict[str, Any] = {"http_status": int(exc.code)}
+
+        if raw_error:
+            try:
+                decoded_error = json.loads(raw_error)
+                if isinstance(decoded_error, dict):
+                    upstream_code = str(
+                        decoded_error.get("error_code")
+                        or decoded_error.get("error", {}).get("code")
+                        or upstream_code
+                    )
+                    upstream_message = str(
+                        decoded_error.get("message")
+                        or decoded_error.get("error", {}).get("message")
+                        or upstream_message
+                    )
+                    if "retryable" in decoded_error:
+                        upstream_retryable = bool(decoded_error.get("retryable"))
+                    if isinstance(decoded_error.get("details"), dict):
+                        upstream_details.update(decoded_error.get("details"))
+            except json.JSONDecodeError:
+                upstream_details["upstream_body"] = raw_error[:500]
+
+        status = f"{int(exc.code)} {exc.reason or 'Upstream Error'}"
+        raise CloudInferError(
+            upstream_code,
+            upstream_message,
+            retryable=upstream_retryable,
+            status=status,
+            details=upstream_details,
+        ) from exc
     except urlerror.URLError as exc:
         if isinstance(exc.reason, TimeoutError):
             raise TimeoutError("upstream timeout") from exc
@@ -586,6 +648,10 @@ def _default_cloud_infer(
         "low_confidence": decoded.get("low_confidence")
         if decoded.get("low_confidence") is not None
         else decoded.get("output", {}).get("low_confidence"),
+        "runtime_mode": decoded.get("runtime_mode"),
+        "cloud_handoff": decoded.get("cloud_handoff"),
+        "model_id": decoded.get("model_id"),
+        "model_version": decoded.get("model_version"),
         "provider_raw": decoded,
         "latency_ms": latency_ms,
     }

@@ -178,9 +178,16 @@ cd /Users/alex/Documents/ASL-project/sign-language-asl
 # local API auth keys accepted from clients (RN sends this via X-API-Key)
 export ASL_V1_API_KEYS='dev-local-key-1'
 
-# upstream target = your adapter
+# upstream target = your adapter (local)
 export ASL_CLOUD_INFER_URL='http://127.0.0.1:9000/'
 export ASL_CLOUD_API_KEY='adapter-secret-123'
+
+# hosted HF custom endpoint mode (only when ASL_CLOUD_INFER_URL points to ...endpoints.huggingface.cloud/v1/translate-sign)
+# ASL_CLOUD_API_KEY = HF bearer token
+# ASL_CLOUD_UPSTREAM_APP_KEY = hosted endpoint ASL_V1_API_KEYS value
+# export ASL_CLOUD_INFER_URL='https://<endpoint>.endpoints.huggingface.cloud/v1/translate-sign'
+# export ASL_CLOUD_API_KEY='<hf_token>'
+# export ASL_CLOUD_UPSTREAM_APP_KEY='<hosted_app_key>'
 
 python3 scripts/runtime/serve_cloud_translate_api.py --host 0.0.0.0 --port 8000
 ```
@@ -231,7 +238,8 @@ In RN UI:
 3. RN app status progresses from upload → processing → result.
 4. If auth fails, verify:
    - RN API key matches `ASL_V1_API_KEYS`
-   - `ASL_CLOUD_API_KEY` matches `ADAPTER_BEARER`
+   - local adapter mode: `ASL_CLOUD_API_KEY` matches `ADAPTER_BEARER`
+   - hosted HF mode: `ASL_CLOUD_API_KEY` is HF bearer token and `ASL_CLOUD_UPSTREAM_APP_KEY` matches hosted endpoint `ASL_V1_API_KEYS`
 
 ---
 

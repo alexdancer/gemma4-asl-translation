@@ -31,16 +31,22 @@ fi
 export ASL_CACTUS_SERVICE_API_KEY="${ASL_CACTUS_SERVICE_API_KEY:-dev-cactus-secret}"
 export ASL_CLOUD_API_KEY="${ASL_CLOUD_API_KEY:-$ASL_CACTUS_SERVICE_API_KEY}"
 export ASL_V1_API_KEYS="${ASL_V1_API_KEYS:-dev-local-key-1}"
-export ASL_CLOUD_INFER_URL="${ASL_CLOUD_INFER_URL:-http://127.0.0.1:9000/}"
+export ASL_DEV_CLIENT_API_KEY="${ASL_DEV_CLIENT_API_KEY:-${ASL_V1_API_KEYS%%,*}}"
 export ASL_CLOUD_MODEL="${ASL_CLOUD_MODEL:-AlexD281/asl-gemma4-e2b-q64-top50-merged-16bit}"
+export ASL_HF_ENDPOINT_MODEL_ID="${ASL_HF_ENDPOINT_MODEL_ID:-$ASL_CLOUD_MODEL}"
+export ASL_HF_ENDPOINT_MODEL_VERSION="${ASL_HF_ENDPOINT_MODEL_VERSION:-gemma4-e2b-q64-top50}"
+export ASL_HF_ENDPOINT_BACKEND="${ASL_HF_ENDPOINT_BACKEND:-real}"
+export ASL_CLOUD_INFER_URL="${ASL_CLOUD_INFER_URL:-http://127.0.0.1:9000/v1/translate-sign}"
+export ASL_CLOUD_UPSTREAM_APP_KEY="${ASL_CLOUD_UPSTREAM_APP_KEY:-}"
+export ASL_CLOUD_TIMEOUT_SECONDS="${ASL_CLOUD_TIMEOUT_SECONDS:-30}"
 export ASL_HF_OPENAI_BASE_URL="${ASL_HF_OPENAI_BASE_URL:-https://router.huggingface.co/v1}"
 export ASL_HF_ROUTE_MODE="${ASL_HF_ROUTE_MODE:-auto}"
-export ASL_CACTUS_MODEL_VERSION="${ASL_CACTUS_MODEL_VERSION:-gemma4-e2b-q64-top50}"
+export ASL_CACTUS_MODEL_VERSION="${ASL_CACTUS_MODEL_VERSION:-$ASL_HF_ENDPOINT_MODEL_VERSION}"
 
 if [[ "$MODE" == "device" ]]; then
-  RN_API_URL="http://$MAC_IP:8000/v1/translate-sign"
+  RN_API_URL="${ASL_DEV_API_URL:-http://$MAC_IP:8000/v1/translate-sign}"
 else
-  RN_API_URL="http://127.0.0.1:8000/v1/translate-sign"
+  RN_API_URL="${ASL_DEV_API_URL:-http://127.0.0.1:8000/v1/translate-sign}"
 fi
 
 cat > "$RN_DIR/src/inferenceLocal.generated.ts" <<EOF
@@ -49,7 +55,7 @@ cat > "$RN_DIR/src/inferenceLocal.generated.ts" <<EOF
 export const LOCAL_INFERENCE_TARGET = {
   mode: '$MODE',
   apiUrl: '$RN_API_URL',
-  apiKey: '$ASL_V1_API_KEYS',
+  apiKey: '$ASL_DEV_CLIENT_API_KEY',
 } as const;
 EOF
 
@@ -97,9 +103,12 @@ if [[ -z "${ASL_HF_TOKEN:-}" ]]; then
   echo "Warning: ASL_HF_TOKEN is not set. The stack can start, but real upstream HF inference will fail until it is set."
 fi
 
-if [[ "$ASL_CLOUD_MODEL" == "AlexD281/asl-gemma4-e2b-q64-top50-merged-16bit" ]] && [[ "$ASL_HF_OPENAI_BASE_URL" == "https://router.huggingface.co/v1" ]]; then
-  echo "Warning: this model is not served by HF router chat/completions and router completions is unavailable for it." >&2
-  echo "Set ASL_HF_OPENAI_BASE_URL to your dedicated HF endpoint base URL for option-2 deployment." >&2
+if [[ "$ASL_HF_ENDPOINT_BACKEND" == "real" && -z "${ASL_HF_TOKEN:-}" ]]; then
+  echo "Warning: ASL_HF_ENDPOINT_BACKEND=real but ASL_HF_TOKEN is not set. Inference calls will fail until token is provided." >&2
+fi
+
+if [[ "$ASL_CLOUD_INFER_URL" == *"endpoints.huggingface.cloud"* && "$ASL_CLOUD_INFER_URL" == *"/v1/translate-sign"* && -z "$ASL_CLOUD_UPSTREAM_APP_KEY" ]]; then
+  echo "Warning: hosted HF /v1/translate-sign usually needs ASL_CLOUD_UPSTREAM_APP_KEY for upstream X-API-Key auth." >&2
 fi
 
 if ! "$PYTHON_BIN" - <<'PY' >/dev/null
@@ -115,15 +124,15 @@ then
   exit 1
 fi
 
-start_bg cactus-hybrid "$PYTHON_BIN" scripts/runtime/serve_cactus_hybrid_service.py --host 0.0.0.0 --port 9000
+start_bg hf-endpoint "$PYTHON_BIN" scripts/runtime/serve_hf_custom_endpoint_service.py --host 0.0.0.0 --port 9000
 start_bg cloud-translate "$PYTHON_BIN" scripts/runtime/serve_cloud_translate_api.py --host 0.0.0.0 --port 8000
 start_metro
 
 if [[ "$MODE" == "device" ]]; then
   echo
   echo "Physical iPhone backend endpoint: $RN_API_URL"
-  echo "Model route: RN app -> FastAPI :8000 -> Cactus hybrid service :9000 -> HF OpenAI-compatible cloud handoff"
-  echo "Cloud model: $ASL_CLOUD_MODEL ($ASL_CACTUS_MODEL_VERSION)"
+  echo "Model route: RN app -> FastAPI :8000 -> HF endpoint :9000 /v1/translate-sign (in-container pipeline)"
+  echo "Cloud model: $ASL_HF_ENDPOINT_MODEL_ID ($ASL_HF_ENDPOINT_MODEL_VERSION), backend=$ASL_HF_ENDPOINT_BACKEND"
   echo "The RN app uses the generated local dev config, so no in-app endpoint typing is needed."
   echo "Make sure your iPhone and Mac are on the same Wi-Fi and approve any iOS Local Network prompt."
   echo
@@ -134,8 +143,8 @@ if [[ "$MODE" == "device" ]]; then
 else
   echo
   echo "Simulator backend endpoint: $RN_API_URL"
-  echo "Model route: RN app -> FastAPI :8000 -> Cactus hybrid service :9000 -> HF OpenAI-compatible cloud handoff"
-  echo "Cloud model: $ASL_CLOUD_MODEL ($ASL_CACTUS_MODEL_VERSION)"
+  echo "Model route: RN app -> FastAPI :8000 -> HF endpoint :9000 /v1/translate-sign (in-container pipeline)"
+  echo "Cloud model: $ASL_HF_ENDPOINT_MODEL_ID ($ASL_HF_ENDPOINT_MODEL_VERSION), backend=$ASL_HF_ENDPOINT_BACKEND"
   echo
   echo "Launching simulator..."
   (cd "$RN_DIR" && npm run ios) || {

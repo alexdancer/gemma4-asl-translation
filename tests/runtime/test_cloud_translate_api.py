@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 import base64
+import io
 import json
 import os
 from types import SimpleNamespace
 import uuid
 from pathlib import Path
+from urllib import error as urlerror
 
 from src import cloud_translate_api as cloud_translate_api_module
 from src.cloud_translate_api import CloudInferError, _default_cloud_infer, translate_sign_wsgi_app
@@ -305,6 +307,7 @@ def test_default_cloud_infer_sends_real_base64(monkeypatch) -> None:
             return b'{"gloss":"HELLO","translation":"Hello","confidence":0.9,"latency_ms":12,"runtime_mode":"cactus_engine","cloud_handoff":true,"model_id":"cactus-asl-v2","model_version":"v1"}'
 
     def fake_urlopen(req, timeout):
+        captured["headers"] = {k.lower(): v for k, v in req.header_items()}
         captured["body"] = req.data
         captured["timeout"] = timeout
         return DummyResp()
@@ -318,6 +321,67 @@ def test_default_cloud_infer_sends_real_base64(monkeypatch) -> None:
 
     assert body["input"]["encoding"] == "base64"
     assert body["input"]["video_base64"] == base64.b64encode(b"abc").decode("ascii")
+    assert "x-api-key" not in {k.lower(): v for k, v in captured.get("headers", {}).items()}
+
+
+def test_default_cloud_infer_uses_multipart_for_translate_sign_endpoint(monkeypatch) -> None:
+    captured = {}
+
+    class DummyResp:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+        def read(self):
+            return b'{"translation":"Hello","confidence":0.9,"latency_ms":12,"runtime_mode":"cactus_engine","cloud_handoff":true,"model_id":"cactus-asl-v2","model_version":"v1"}'
+
+    def fake_urlopen(req, timeout):
+        captured["headers"] = {k.lower(): v for k, v in req.header_items()}
+        captured["body"] = req.data
+        captured["timeout"] = timeout
+        return DummyResp()
+
+    monkeypatch.setenv("ASL_CLOUD_INFER_URL", "https://example.test/v1/translate-sign")
+    monkeypatch.setenv("ASL_CLOUD_API_KEY", "k")
+    monkeypatch.setattr("src.cloud_translate_api.urlrequest.urlopen", fake_urlopen)
+
+    _default_cloud_infer(video_bytes=b"abc", filename="clip.mov", request_id="rid-1", timeout_seconds=3.0)
+
+    assert captured["headers"]["content-type"].startswith("multipart/form-data; boundary=asl-boundary-rid-1")
+    assert b"name=\"video\"; filename=\"clip.mov\"" in captured["body"]
+    assert captured["body"].endswith(b"\r\n--asl-boundary-rid-1--\r\n")
+    assert b"abc" in captured["body"]
+
+
+def test_default_cloud_infer_sets_upstream_x_api_key_when_configured(monkeypatch) -> None:
+    captured = {}
+
+    class DummyResp:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+        def read(self):
+            return b'{"translation":"Hello","confidence":0.9,"latency_ms":12,"runtime_mode":"cactus_engine","cloud_handoff":true,"model_id":"cactus-asl-v2","model_version":"v1"}'
+
+    def fake_urlopen(req, timeout):
+        captured["headers"] = {k.lower(): v for k, v in req.header_items()}
+        captured["timeout"] = timeout
+        return DummyResp()
+
+    monkeypatch.setenv("ASL_CLOUD_INFER_URL", "https://example.test/v1/translate-sign")
+    monkeypatch.setenv("ASL_CLOUD_API_KEY", "hf-token")
+    monkeypatch.setenv("ASL_CLOUD_UPSTREAM_APP_KEY", "app-key")
+    monkeypatch.setattr("src.cloud_translate_api.urlrequest.urlopen", fake_urlopen)
+
+    _default_cloud_infer(video_bytes=b"abc", filename="clip.mov", request_id="rid-1", timeout_seconds=3.0)
+
+    assert captured["headers"]["authorization"] == "Bearer hf-token"
+    assert captured["headers"]["x-api-key"] == "app-key"
 
 
 def test_default_cloud_infer_includes_pose_summary_when_pose_handoff_present(monkeypatch) -> None:
@@ -421,6 +485,43 @@ def test_default_cloud_infer_accepts_zero_confidence(monkeypatch) -> None:
 
     result = _default_cloud_infer(video_bytes=b"abc", filename="clip.mov", request_id="rid-1", timeout_seconds=3.0)
     assert result["confidence"] == 0.0
+
+
+def test_default_cloud_infer_propagates_upstream_error_payload(monkeypatch) -> None:
+    def fake_urlopen(req, timeout):
+        _ = (req, timeout)
+        payload = json.dumps(
+            {
+                "error_code": "INFERENCE_FAILED",
+                "message": "invalid model output",
+                "retryable": False,
+                "details": {"stage": "backend_generate", "reason": "structured_echo"},
+            }
+        ).encode("utf-8")
+        raise urlerror.HTTPError(
+            url="https://example.test/v1/translate-sign",
+            code=502,
+            msg="Bad Gateway",
+            hdrs=None,
+            fp=io.BytesIO(payload),
+        )
+
+    monkeypatch.setenv("ASL_CLOUD_INFER_URL", "https://example.test/v1/translate-sign")
+    monkeypatch.setenv("ASL_CLOUD_API_KEY", "k")
+    monkeypatch.setattr("src.cloud_translate_api.urlrequest.urlopen", fake_urlopen)
+
+    try:
+        _default_cloud_infer(video_bytes=b"abc", filename="clip.mov", request_id="rid-1", timeout_seconds=3.0)
+    except CloudInferError as exc:
+        assert exc.code == "INFERENCE_FAILED"
+        assert str(exc) == "invalid model output"
+        assert exc.retryable is False
+        assert exc.status == "502 Bad Gateway"
+        assert exc.details.get("stage") == "backend_generate"
+        assert exc.details.get("reason") == "structured_echo"
+        assert exc.details.get("http_status") == 502
+    else:
+        raise AssertionError("expected CloudInferError")
 
 
 def test_translate_sign_unknown_path_uses_standard_error_schema() -> None:

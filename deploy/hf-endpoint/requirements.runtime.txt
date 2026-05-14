@@ -1,0 +1,11 @@
+fastapi
+uvicorn
+huggingface_hub
+numpy
+opencv-python-headless==4.10.0.84
+mediapipe==0.10.14
+python-multipart
+transformers
+accelerate
+sentencepiece
+torch

@@ -19,7 +19,8 @@ Successful chat response includes minimal fields only:
 ## Environment variables
 - `ASL_HF_ENDPOINT_MODEL_ID` (default: `AlexD281/asl-gemma4-e2b-q64-top50-merged-16bit`)
 - `ASL_HF_ENDPOINT_MODEL_VERSION` (default: `dev`)
-- `ASL_HF_ENDPOINT_BACKEND` (default: `stub`)
+- `ASL_HF_ENDPOINT_BACKEND` (default: `stub`; set `real` to call Hugging Face Inference API)
+- `ASL_HF_TOKEN` (optional for public models; recommended/required for gated models and higher rate limits)
 
 ## Local run
 ```bash

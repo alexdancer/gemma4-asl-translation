@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from typing import Any
 
 from fastapi import FastAPI, Request, Response
@@ -44,6 +45,15 @@ def _build_fastapi_response(status: str, headers: list[tuple[str, str]], body: b
     return response
 
 
+def _resolve_cloud_timeout_seconds() -> float:
+    raw = os.environ.get("ASL_CLOUD_TIMEOUT_SECONDS", "12").strip()
+    try:
+        value = float(raw)
+    except ValueError:
+        return 12.0
+    return value if value > 0 else 12.0
+
+
 def create_cloud_translate_app() -> FastAPI:
     app = FastAPI(title="ASL Cloud Translate API", version="1")
 
@@ -51,7 +61,7 @@ def create_cloud_translate_app() -> FastAPI:
     async def route_all(request: Request, path: str) -> Response:
         _ = path
         environ = await _build_wsgi_environ(request)
-        status, headers, raw = translate_sign_wsgi_app(environ)
+        status, headers, raw = translate_sign_wsgi_app(environ, timeout_seconds=_resolve_cloud_timeout_seconds())
         return _build_fastapi_response(status, headers, raw)
 
     return app

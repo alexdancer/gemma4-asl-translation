@@ -17,12 +17,13 @@ def _multipart_body(boundary: str = "testboundary") -> bytes:
 def test_cloud_translate_fastapi_adapter_routes_to_wsgi_logic(monkeypatch):
     app = create_cloud_translate_app()
 
-    def fake_translate(environ):
+    def fake_translate(environ, timeout_seconds=12.0):
         assert environ["REQUEST_METHOD"] == "POST"
         assert environ["PATH_INFO"] == "/v1/translate-sign"
         assert environ["HTTP_X_API_KEY"] == "k1"
         assert environ["CONTENT_TYPE"].startswith("multipart/form-data")
         assert environ["wsgi.input_body"]
+        assert timeout_seconds == 12.0
         return (
             "200 OK",
             [("Content-Type", "application/json")],
@@ -75,7 +76,8 @@ def test_cactus_hybrid_fastapi_adapter_routes_to_wsgi_logic(monkeypatch):
 def test_adapter_preserves_wsgi_status_code_and_headers(monkeypatch):
     app = create_cloud_translate_app()
 
-    def fake_translate(_environ):
+    def fake_translate(_environ, timeout_seconds=12.0):
+        _ = timeout_seconds
         return (
             "429 Too Many Requests",
             [("Content-Type", "application/json"), ("Retry-After", "9")],
@@ -89,3 +91,21 @@ def test_adapter_preserves_wsgi_status_code_and_headers(monkeypatch):
     assert resp.status_code == 429
     assert resp.headers["retry-after"] == "9"
     assert resp.json()["error_code"] == "RATE_LIMITED"
+
+
+def test_cloud_translate_adapter_uses_timeout_from_env(monkeypatch):
+    monkeypatch.setenv("ASL_CLOUD_TIMEOUT_SECONDS", "30")
+    app = create_cloud_translate_app()
+
+    def fake_translate(_environ, timeout_seconds=12.0):
+        assert timeout_seconds == 30.0
+        return (
+            "200 OK",
+            [("Content-Type", "application/json")],
+            json.dumps({"status": "ok"}).encode("utf-8"),
+        )
+
+    monkeypatch.setattr("src.fastapi_apps.translate_sign_wsgi_app", fake_translate)
+    client = TestClient(app)
+    resp = client.get("/v1/translate-sign")
+    assert resp.status_code == 200
