@@ -4,52 +4,9 @@ This is a new [**React Native**](https://reactnative.dev) project, bootstrapped 
 
 ## Local inference dev stack
 
-This app is zero-config in the UI for inference. Users do not type endpoint/API-key values in the app.
+The previous local mobile runtime stack has been removed in the Colab-first pivot.
 
-For local development, first set up the backend Python used by MediaPipe pose extraction:
-
-```sh
-./scripts/dev/setup_backend_py312.sh
-```
-
-Then run one of these from the repo root:
-
-```sh
-npm run dev:mobile:device # physical iPhone
-npm run dev:mobile:sim    # iOS Simulator
-```
-
-Or from `apps/mobile-rn`:
-
-```sh
-npm run dev:ios:device
-npm run dev:ios:sim
-```
-
-The dev stack starts:
-
-- Cactus hybrid service on `0.0.0.0:9000`
-- FastAPI translate API on `0.0.0.0:8000`
-- Metro on `0.0.0.0:8081`
-- the iOS app launch command for the selected target
-
-Endpoint behavior:
-
-- `npm run dev:mobile:sim` writes generated config for `http://127.0.0.1:8000/v1/translate-sign`
-- `npm run dev:mobile:device` writes generated config for `http://<mac-lan-ip>:8000/v1/translate-sign`
-
-The local app key is `dev-local-key-1` and must match backend `ASL_V1_API_KEYS`. Provider/HF/Cactus secrets stay server-side only.
-
-Model route:
-
-```text
-RN app
-  -> FastAPI translate API :8000 (/v1/translate-sign)
-  -> Cactus hybrid service :9000
-  -> HF OpenAI-compatible cloud handoff
-```
-
-Default local cloud model: `AlexD281/asl-gemma4-e2b-q64-top50-merged-16bit`. Override with `ASL_CLOUD_MODEL` if you publish a newer E2B model repo.
+For current project execution, run model evaluation/inference from Colab workflows under `docs/handoffs/colab-pivot-2026-05-15/`.
 
 > **Note**: Make sure you have completed the [Set Up Your Environment](https://reactnative.dev/docs/set-up-your-environment) guide before proceeding.
 

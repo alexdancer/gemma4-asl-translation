@@ -43,7 +43,7 @@ const resolvedApiKey = LOCAL_INFERENCE_TARGET.apiKey?.trim() || DEFAULT_API_KEY;
 // scripts/dev/run_mobile_stack.sh writes inferenceLocal.generated.ts before launch:
 // - simulator mode uses http://127.0.0.1:8000/v1/translate-sign
 // - physical-device mode uses http://<mac-lan-ip>:8000/v1/translate-sign
-// The app calls only the local FastAPI API. Provider/HF/Cactus secrets stay server-side.
+// The app calls only the local API. Provider/HF/Cactus secrets stay server-side.
 export const INFERENCE_CONFIG: InferenceBuildConfig = {
   apiUrl: resolvedApiUrl,
   apiKey: resolvedApiKey,

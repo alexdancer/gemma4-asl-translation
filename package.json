@@ -3,7 +3,7 @@
     "test": "python3 scripts/project_python.py pytest",
     "typecheck": "python3 scripts/project_python.py compileall src scripts tests",
     "dev:backend:setup": "bash scripts/dev/setup_backend_py312.sh",
-    "dev:mobile:sim": "bash scripts/dev/run_mobile_stack.sh simulator",
-    "dev:mobile:device": "bash scripts/dev/run_mobile_stack.sh device"
+    "dev:mobile:sim": "echo 'Removed in Colab-first pivot: legacy mobile stack scripts deleted' && exit 1",
+    "dev:mobile:device": "echo 'Removed in Colab-first pivot: legacy mobile stack scripts deleted' && exit 1"
   }
 }

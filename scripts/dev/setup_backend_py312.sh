@@ -16,7 +16,7 @@ fi
 
 "$PY312" -m venv .venv-py312
 .venv-py312/bin/python -m pip install --upgrade pip
-.venv-py312/bin/python -m pip install fastapi uvicorn python-multipart numpy opencv-python 'mediapipe==0.10.14'
+.venv-py312/bin/python -m pip install numpy opencv-python 'mediapipe==0.10.14'
 .venv-py312/bin/python - <<'PY'
 import mediapipe as mp
 if not hasattr(mp, 'solutions') or not hasattr(mp.solutions, 'holistic'):
