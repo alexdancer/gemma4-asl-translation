@@ -1,0 +1,25 @@
+version: 1
+name: zahid_to_top50
+split_source: zahid_top50_stratified_seed42_v1
+
+# Normalization policy (apply before lookup):
+# - lowercase
+# - trim outer whitespace
+# - collapse repeated inner spaces
+normalization:
+  lowercase: true
+  trim_whitespace: true
+  collapse_spaces: true
+
+# Canonical substitutions approved during planning.
+# Format: canonical_label: preferred_training_label
+canonical_substitutions:
+  forget: forgot
+  last year: year
+
+# Optional explicit source-label overrides (source -> canonical).
+# Keep empty unless a source label must map to a specific canonical Top-50 label.
+source_to_canonical_overrides: {}
+
+# Rows not mapped into canonical Top-50 are dropped in phase 1.
+drop_unmapped: true

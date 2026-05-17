@@ -22,6 +22,8 @@ env/
 # Data artifacts
 data/raw/
 data/processed/
+data/WLASL/
+data/video_finetune/
 !data/raw/.gitkeep
 !data/processed/.gitkeep
 
