@@ -1,9 +1,0 @@
-sample_id,pose_path,gloss
-synthetic_000,sample_000.npz,hello
-synthetic_001,sample_001.npz,thanks
-synthetic_002,sample_002.npz,yes
-synthetic_003,sample_003.npz,no
-synthetic_004,sample_004.npz,please
-synthetic_005,sample_005.npz,more
-synthetic_006,sample_006.npz,help
-synthetic_007,sample_007.npz,stop

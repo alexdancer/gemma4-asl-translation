@@ -22,6 +22,10 @@ env/
 # Data artifacts
 data/raw/
 data/processed/
+data/WLASL/
+data/phase1_zahid_top50
+data/video_finetune/
+data/*.zip
 !data/raw/.gitkeep
 !data/processed/.gitkeep
 
@@ -45,8 +49,10 @@ unsloth_compiled_cache/
 cactus_export/
 
 # Ephemeral evaluation/demo outputs
+results/
 evaluation/results/*_smoke/
 evaluation/results/prerecorded_q64_demo/
+notebooks/output/
 
 # Runtime telemetry artifacts (keep directory, ignore generated logs)
 evaluation/results/runtime/*.jsonl
@@ -54,6 +60,14 @@ evaluation/results/runtime/*.jsonl
 
 # checkpoints
 checkpoints/
+
+# Generated runtime/proof artifacts
+artifacts/cactus_tracer/converted_weights/
+artifacts/cactus_tracer/frozen_baseline_metadata.json
+artifacts/cactus_tracer/local_completion_v1.json
+artifacts/cactus_tracer/parity_report_v1.json
+artifacts/cactus_tracer/run_summary.json
+artifacts/ios_tracer_slice/
 
 # Large iOS model/runtime artifacts
 ios/ASL-App/ASL-App/cactus-model/

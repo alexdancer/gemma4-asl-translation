@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import csv
 import json
+import math
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Literal, Mapping, Sequence
@@ -160,6 +161,72 @@ def write_phase2a_artifacts(report: Phase2AReport, output_dir: Path) -> dict[str
     _write_loss_curve_csv(report.loss_curve, loss_curve_path)
 
     return {"json": json_path, "markdown": markdown_path, "loss_curve_csv": loss_curve_path}
+
+
+def run_label_prior_phase2a(
+    *,
+    train_csv: Path | str,
+    val_csv: Path | str,
+    test_csv: Path | str,
+    output_dir: Path | str,
+    max_samples: int | None = None,
+) -> Phase2AReport:
+    """Run a deterministic label-prior baseline for the Phase 2A gate.
+
+    This keeps the decision-report path runnable without the old placeholder
+    Gemma/Unsloth training script.
+    """
+
+    train_df = _read_phase2a_split(Path(train_csv), max_samples=max_samples)
+    val_df = _read_phase2a_split(Path(val_csv), max_samples=max_samples // 2 if max_samples else None)
+    test_df = _read_phase2a_split(Path(test_csv), max_samples=max_samples // 2 if max_samples else None)
+    predictions = _label_prior_predictions(train_df, test_df)
+    truth = [str(value) for value in test_df["gloss"].tolist()]
+    report = build_phase2a_report(
+        truth=truth,
+        predictions=predictions,
+        train_split=train_df,
+        val_split=val_df,
+        test_split=test_df,
+        training_history={
+            "train_loss": [_label_prior_loss(train_df, train_df)],
+            "val_loss": [_label_prior_loss(train_df, val_df)],
+        },
+        config=Phase2AConfig(min_macro_f1_for_phase2b=0.75, weak_class_f1_threshold=0.65),
+        metadata={
+            "backend": "label_prior",
+            "note": "Deterministic fallback used when Gemma/Unsloth is unavailable.",
+        },
+    )
+    write_phase2a_artifacts(report, Path(output_dir))
+    return report
+
+
+def _read_phase2a_split(csv_path: Path, max_samples: int | None = None) -> pd.DataFrame:
+    frame = pd.read_csv(csv_path)
+    if max_samples is not None:
+        frame = frame.head(max_samples)
+    return frame
+
+
+def _label_prior_predictions(train_df: pd.DataFrame, test_df: pd.DataFrame) -> list[str]:
+    counts = train_df["gloss"].value_counts()
+    if counts.empty:
+        raise ValueError("train split must contain at least one gloss.")
+    max_count = counts.max()
+    majority_gloss = sorted(str(gloss) for gloss, count in counts.items() if count == max_count)[0]
+    return [majority_gloss] * len(test_df)
+
+
+def _label_prior_loss(train_df: pd.DataFrame, eval_df: pd.DataFrame) -> float:
+    counts = train_df["gloss"].value_counts()
+    labels = sorted(set(str(label) for label in train_df["gloss"].tolist()) | set(str(label) for label in eval_df["gloss"].tolist()))
+    denominator = float(counts.sum() + len(labels))
+    losses = []
+    for label in eval_df["gloss"].tolist():
+        probability = (float(counts.get(label, 0) or 0) + 1.0) / denominator
+        losses.append(-math.log(probability))
+    return round(sum(losses) / len(losses), 6) if losses else 0.0
 
 
 def _per_class_metrics(truth: Sequence[str], predictions: Sequence[str]) -> dict[str, ClassMetrics]:
