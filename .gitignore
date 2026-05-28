@@ -23,6 +23,7 @@ env/
 data/raw/
 data/processed/
 data/WLASL/
+data/phase1_zahid_top50
 data/video_finetune/
 !data/raw/.gitkeep
 !data/processed/.gitkeep
