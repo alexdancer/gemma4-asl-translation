@@ -1,6 +1,6 @@
 {
   "scripts": {
-    "test": "python3 scripts/project_python.py pytest",
+    "test": "python3 scripts/project_python.py pytest tests",
     "typecheck": "python3 scripts/project_python.py compileall src scripts tests",
     "dev:backend:setup": "bash scripts/dev/setup_backend_py312.sh",
     "dev:mobile:sim": "echo 'Removed in Colab-first pivot: legacy mobile stack scripts deleted' && exit 1",
