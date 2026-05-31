@@ -4,6 +4,12 @@ This repository contains a Colab-first ASL recognition prototype for a fixed **T
 
 The current project is **not** a mobile app and no longer includes Hugging Face Space deployment code. The legacy React Native, Cactus, iOS, mobile tracer, and Hugging Face Space app code have been removed from this branch.
 
+## Key external resources
+
+- Hugging Face model adapter: [`AlexD281/asl-gemma4-26b-a4b-zahid-pretrain-lora`](https://huggingface.co/AlexD281/asl-gemma4-26b-a4b-zahid-pretrain-lora)
+- WLASL dataset GitHub repository: [`dxli94/WLASL`](https://github.com/dxli94/WLASL)
+- Zahid ASL dataset: [`ZahidYasinMittha/American-Sign-Language-Dataset`](https://huggingface.co/datasets/ZahidYasinMittha/American-Sign-Language-Dataset)
+
 ## What the project does
 
 The project takes a short ASL video, samples a fixed set of frames, asks a Gemma-4 vision model to identify the sign, and accepts the answer only if it is one of the approved Top-50 labels.

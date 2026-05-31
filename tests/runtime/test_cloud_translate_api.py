@@ -300,7 +300,7 @@ def test_default_cloud_infer_sends_real_base64(monkeypatch) -> None:
         def __enter__(self):
             return self
 
-        def __exit__(self, exc_type, exc, tb):
+        def __exit__(self, _exc_type, _exc, _tb):
             return False
 
         def read(self):
@@ -331,7 +331,7 @@ def test_default_cloud_infer_uses_multipart_for_translate_sign_endpoint(monkeypa
         def __enter__(self):
             return self
 
-        def __exit__(self, exc_type, exc, tb):
+        def __exit__(self, _exc_type, _exc, _tb):
             return False
 
         def read(self):
@@ -362,7 +362,7 @@ def test_default_cloud_infer_sets_upstream_x_api_key_when_configured(monkeypatch
         def __enter__(self):
             return self
 
-        def __exit__(self, exc_type, exc, tb):
+        def __exit__(self, _exc_type, _exc, _tb):
             return False
 
         def read(self):
@@ -391,7 +391,7 @@ def test_default_cloud_infer_includes_pose_summary_when_pose_handoff_present(mon
         def __enter__(self):
             return self
 
-        def __exit__(self, exc_type, exc, tb):
+        def __exit__(self, _exc_type, _exc, _tb):
             return False
 
         def read(self):
@@ -431,7 +431,7 @@ def test_default_cloud_infer_includes_pose_sequence_when_enabled(monkeypatch) ->
         def __enter__(self):
             return self
 
-        def __exit__(self, exc_type, exc, tb):
+        def __exit__(self, _exc_type, _exc, _tb):
             return False
 
         def read(self):
@@ -470,7 +470,7 @@ def test_default_cloud_infer_accepts_zero_confidence(monkeypatch) -> None:
         def __enter__(self):
             return self
 
-        def __exit__(self, exc_type, exc, tb):
+        def __exit__(self, _exc_type, _exc, _tb):
             return False
 
         def read(self):
