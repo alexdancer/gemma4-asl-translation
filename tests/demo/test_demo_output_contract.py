@@ -3,10 +3,9 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from pathlib import Path
 from typing import Optional
 
-from src.demo.output_contract import DemoOutputConfig, format_demo_output, load_demo_output_config
+from src.demo.output_contract import DemoOutputConfig, format_demo_output
 
 
 @dataclass(frozen=True)
@@ -50,12 +49,3 @@ def test_confident_prediction_renders_predicted_gloss() -> None:
     assert output.display_text == "thanks"
     assert output.is_uncertain is False
     assert output.status == "ok"
-
-
-def test_confidence_threshold_loads_from_yaml_config(tmp_path: Path) -> None:
-    config_path = tmp_path / "config.yaml"
-    config_path.write_text("inference:\n  confidence_threshold: 0.82\n", encoding="utf-8")
-
-    config = load_demo_output_config(config_path)
-
-    assert config.confidence_threshold == 0.82

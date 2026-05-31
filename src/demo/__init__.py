@@ -5,7 +5,7 @@ from src.demo.fallback_a import (
     DemoInferenceRunResult,
     run_demo_inference_once,
 )
-from src.demo.output_contract import DemoOutput, DemoOutputConfig, format_demo_output, load_demo_output_config
+from src.demo.output_contract import DemoOutput, DemoOutputConfig, format_demo_output
 from src.demo.prerecorded_q64 import (
     DEMO_CLAIMS,
     DEMO_SCOPE,
@@ -32,7 +32,6 @@ __all__ = [
     "PythonVideoPromptControlSmokeConfig",
     "PythonVideoPromptControlSmokeResult",
     "format_demo_output",
-    "load_demo_output_config",
     "run_demo_inference_once",
     "run_prerecorded_q64_demo",
     "run_python_video_prompt_control_smoke",

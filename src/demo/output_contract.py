@@ -3,10 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from pathlib import Path
 from typing import Literal, Optional, Protocol
-
-import yaml
 
 DEFAULT_CONFIDENCE_THRESHOLD = 0.70
 
@@ -88,16 +85,3 @@ def format_demo_output(
 
 def _clamp_confidence(confidence: float) -> float:
     return max(0.0, min(1.0, float(confidence)))
-
-
-def load_demo_output_config(config_path: Path | str = "config.yaml") -> DemoOutputConfig:
-    """Load demo output settings from the project YAML config."""
-
-    path = Path(config_path)
-    payload = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
-    inference_config = payload.get("inference") or {}
-    return DemoOutputConfig(
-        confidence_threshold=float(
-            inference_config.get("confidence_threshold", DEFAULT_CONFIDENCE_THRESHOLD)
-        )
-    )

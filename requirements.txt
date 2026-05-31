@@ -14,5 +14,4 @@ opencv-python
 tqdm
 matplotlib
 jupyter
-pyyaml
 pytest
