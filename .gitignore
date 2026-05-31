@@ -45,8 +45,6 @@ sign-language-asl/
 # Unsloth
 unsloth_compiled_cache/
 
-# Mobile export artifacts
-cactus_export/
 
 # Ephemeral evaluation/demo outputs
 results/
@@ -61,18 +59,7 @@ evaluation/results/runtime/*.jsonl
 # checkpoints
 checkpoints/
 
-# Generated runtime/proof artifacts
-artifacts/cactus_tracer/converted_weights/
-artifacts/cactus_tracer/frozen_baseline_metadata.json
-artifacts/cactus_tracer/local_completion_v1.json
-artifacts/cactus_tracer/parity_report_v1.json
-artifacts/cactus_tracer/run_summary.json
-artifacts/ios_tracer_slice/
 
-# Large iOS model/runtime artifacts
-ios/ASL-App/ASL-App/cactus-model/
-ios/ASL-App/Frameworks/
-ios/ASL-App/cactus-ios.xcframework/
 
 issues/
 ralph/

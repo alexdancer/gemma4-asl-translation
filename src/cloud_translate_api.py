@@ -154,7 +154,11 @@ def _load_allowed_api_keys() -> set[str]:
 
 
 def _extract_api_key(environ: dict[str, Any]) -> str | None:
-    """Extract API key from Authorization Bearer token or X-API-Key header."""
+    """Extract app API key from X-API-Key, falling back to Authorization Bearer."""
+
+    x_api_key = str(environ.get("HTTP_X_API_KEY") or "").strip()
+    if x_api_key:
+        return x_api_key
 
     auth_header = str(environ.get("HTTP_AUTHORIZATION") or "").strip()
     if auth_header.lower().startswith("bearer "):
@@ -162,8 +166,7 @@ def _extract_api_key(environ: dict[str, Any]) -> str | None:
         if token:
             return token
 
-    x_api_key = str(environ.get("HTTP_X_API_KEY") or "").strip()
-    return x_api_key or None
+    return None
 
 
 def _check_rate_limit(*, api_key: str, now: float) -> tuple[bool, dict[str, Any] | None]:
@@ -498,7 +501,7 @@ def _default_cloud_infer(
 
     endpoint = os.environ.get("ASL_CLOUD_INFER_URL")
     api_key = os.environ.get("ASL_CLOUD_API_KEY")
-    model_name = os.environ.get("ASL_CLOUD_MODEL", "cactus-asl-v2")
+    model_name = os.environ.get("ASL_CLOUD_MODEL", "asl-top50-v1")
 
     if not endpoint:
         raise RuntimeError("ASL_CLOUD_INFER_URL is not configured")
@@ -685,7 +688,7 @@ def _record_infer_failure_telemetry(*, request_id: str, started: float, outcome:
             latency_ms=latency_ms,
             outcome=outcome,
             confidence=0.0,
-            model_tag=os.environ.get("ASL_CLOUD_MODEL", "cactus-asl-v2"),
+            model_tag=os.environ.get("ASL_CLOUD_MODEL", "asl-top50-v1"),
         )
     )
 
@@ -936,7 +939,7 @@ def translate_sign_wsgi_app(
             latency_ms=payload["latency_ms"],
             outcome="success",
             confidence=payload["confidence"],
-            model_tag=os.environ.get("ASL_CLOUD_MODEL", "cactus-asl-v2"),
+            model_tag=os.environ.get("ASL_CLOUD_MODEL", "asl-top50-v1"),
         )
     )
 

@@ -2,7 +2,7 @@
 
 This module is intentionally scoped to prompt-control free generation. It
 selects known-correct samples and writes a compact JSON fixture for later video
-and Cactus parity checks. It does not run or encode constrained Top-50
+prompt-control checks. It does not run or encode constrained Top-50
 inference.
 """
 

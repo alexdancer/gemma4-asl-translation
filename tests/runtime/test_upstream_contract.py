@@ -9,13 +9,13 @@ from src.shared.upstream_contract import (
 
 def test_validate_proof_fields_accepts_matching_or_missing_upstream_request_id():
     result = {
-        "runtime_mode": "cactus_engine",
+        "runtime_mode": "cloud_inference",
         "cloud_handoff": True,
         "model_id": "m1",
         "model_version": "v1",
     }
     proof = validate_proof_fields(result=result, request_id="req-1")
-    assert proof.runtime_mode == "cactus_engine"
+    assert proof.runtime_mode == "cloud_inference"
     assert proof.cloud_handoff is True
     assert proof.model_id == "m1"
     assert proof.model_version == "v1"
@@ -30,7 +30,7 @@ def test_validate_proof_fields_rejects_request_id_mismatch():
     try:
         validate_proof_fields(
             result={
-                "runtime_mode": "cactus_engine",
+                "runtime_mode": "cloud_inference",
                 "cloud_handoff": True,
                 "model_id": "m1",
                 "model_version": "v1",

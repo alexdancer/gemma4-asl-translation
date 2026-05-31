@@ -53,7 +53,7 @@ def _default_pose_pipeline(*, request_id: str, frame_extraction):
     )
 
 
-def _proof_fields(*, model_id: str = "cactus-asl-v2", model_version: str = "v1", runtime_mode: str = "cactus_engine", cloud_handoff: bool = True) -> dict:
+def _proof_fields(*, model_id: str = "asl-top50-v1", model_version: str = "v1", runtime_mode: str = "cloud_inference", cloud_handoff: bool = True) -> dict:
     return {
         "runtime_mode": runtime_mode,
         "cloud_handoff": cloud_handoff,
@@ -139,9 +139,9 @@ def test_translate_sign_accepts_multipart_and_returns_real_schema(tmp_path: Path
     assert payload["translation"] == "Hello"
     assert payload["confidence"] == 0.93
     assert payload["latency_ms"] == 123
-    assert payload["runtime_mode"] == "cactus_engine"
+    assert payload["runtime_mode"] == "cloud_inference"
     assert payload["cloud_handoff"] is True
-    assert payload["model_id"] == "cactus-asl-v2"
+    assert payload["model_id"] == "asl-top50-v1"
     assert payload["model_version"] == "v1"
     assert payload["video_ingest"]["normalization_applied"] is False
     assert payload["frame_extraction"]["frame_count"] == 30
@@ -304,7 +304,7 @@ def test_default_cloud_infer_sends_real_base64(monkeypatch) -> None:
             return False
 
         def read(self):
-            return b'{"gloss":"HELLO","translation":"Hello","confidence":0.9,"latency_ms":12,"runtime_mode":"cactus_engine","cloud_handoff":true,"model_id":"cactus-asl-v2","model_version":"v1"}'
+            return b'{"gloss":"HELLO","translation":"Hello","confidence":0.9,"latency_ms":12,"runtime_mode":"cloud_inference","cloud_handoff":true,"model_id":"asl-top50-v1","model_version":"v1"}'
 
     def fake_urlopen(req, timeout):
         captured["headers"] = {k.lower(): v for k, v in req.header_items()}
@@ -335,7 +335,7 @@ def test_default_cloud_infer_uses_multipart_for_translate_sign_endpoint(monkeypa
             return False
 
         def read(self):
-            return b'{"translation":"Hello","confidence":0.9,"latency_ms":12,"runtime_mode":"cactus_engine","cloud_handoff":true,"model_id":"cactus-asl-v2","model_version":"v1"}'
+            return b'{"translation":"Hello","confidence":0.9,"latency_ms":12,"runtime_mode":"cloud_inference","cloud_handoff":true,"model_id":"asl-top50-v1","model_version":"v1"}'
 
     def fake_urlopen(req, timeout):
         captured["headers"] = {k.lower(): v for k, v in req.header_items()}
@@ -366,7 +366,7 @@ def test_default_cloud_infer_sets_upstream_x_api_key_when_configured(monkeypatch
             return False
 
         def read(self):
-            return b'{"translation":"Hello","confidence":0.9,"latency_ms":12,"runtime_mode":"cactus_engine","cloud_handoff":true,"model_id":"cactus-asl-v2","model_version":"v1"}'
+            return b'{"translation":"Hello","confidence":0.9,"latency_ms":12,"runtime_mode":"cloud_inference","cloud_handoff":true,"model_id":"asl-top50-v1","model_version":"v1"}'
 
     def fake_urlopen(req, timeout):
         captured["headers"] = {k.lower(): v for k, v in req.header_items()}
@@ -395,7 +395,7 @@ def test_default_cloud_infer_includes_pose_summary_when_pose_handoff_present(mon
             return False
 
         def read(self):
-            return b'{"translation":"Hello","confidence":0.9,"latency_ms":12,"runtime_mode":"cactus_engine","cloud_handoff":true,"model_id":"cactus-asl-v2","model_version":"v1"}'
+            return b'{"translation":"Hello","confidence":0.9,"latency_ms":12,"runtime_mode":"cloud_inference","cloud_handoff":true,"model_id":"asl-top50-v1","model_version":"v1"}'
 
     def fake_urlopen(req, timeout):
         captured["body"] = req.data
@@ -435,7 +435,7 @@ def test_default_cloud_infer_includes_pose_sequence_when_enabled(monkeypatch) ->
             return False
 
         def read(self):
-            return b'{"translation":"Hello","confidence":0.9,"latency_ms":12,"runtime_mode":"cactus_engine","cloud_handoff":true,"model_id":"cactus-asl-v2","model_version":"v1"}'
+            return b'{"translation":"Hello","confidence":0.9,"latency_ms":12,"runtime_mode":"cloud_inference","cloud_handoff":true,"model_id":"asl-top50-v1","model_version":"v1"}'
 
     def fake_urlopen(req, timeout):
         captured["body"] = req.data
@@ -474,7 +474,7 @@ def test_default_cloud_infer_accepts_zero_confidence(monkeypatch) -> None:
             return False
 
         def read(self):
-            return b'{"translation":"Hello","confidence":0,"latency_ms":12,"runtime_mode":"cactus_engine","cloud_handoff":true,"model_id":"cactus-asl-v2","model_version":"v1"}'
+            return b'{"translation":"Hello","confidence":0,"latency_ms":12,"runtime_mode":"cloud_inference","cloud_handoff":true,"model_id":"asl-top50-v1","model_version":"v1"}'
 
     def fake_urlopen(req, timeout):
         return DummyResp()
@@ -740,6 +740,29 @@ def test_translate_sign_rejects_missing_or_invalid_api_key(monkeypatch) -> None:
     payload = json.loads(raw.decode("utf-8"))
     assert status == "401 Unauthorized"
     assert payload["error_code"] == "UNAUTHORIZED"
+
+
+def test_translate_sign_prefers_x_api_key_when_endpoint_bearer_is_also_present(monkeypatch) -> None:
+    monkeypatch.setenv("ASL_V1_API_KEYS", "app-key")
+    monkeypatch.delenv("ASL_V1_API_KEYS_NEXT", raising=False)
+
+    environ = _base_environ()
+    environ["HTTP_AUTHORIZATION"] = "Bearer endpoint-call-token"
+    environ["HTTP_X_API_KEY"] = "app-key"
+    environ["cloud_infer_callable"] = lambda **kwargs: {
+        "request_id": kwargs["request_id"],
+        "translation": "Hello",
+        "confidence": 0.9,
+        "latency_ms": 5,
+        **_proof_fields(),
+    }
+
+    status, _headers, raw = translate_sign_wsgi_app(environ)
+    payload = json.loads(raw.decode("utf-8"))
+
+    assert status == "200 OK"
+    assert payload["prediction"] == "Hello"
+
 
 
 def test_translate_sign_accepts_next_rotation_key(monkeypatch) -> None:
