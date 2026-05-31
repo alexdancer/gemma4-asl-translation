@@ -1,13 +1,13 @@
 {
   "checkpoint_path": "checkpoints/unsloth_gemma-4-E4B-it_q64_full_top50_baseline",
-  "generated_at": "2026-05-03T23:09:34+00:00",
+  "generated_at": "2026-05-12T01:21:43+00:00",
   "inference_contract": "Prompt-control free generation only; constrained Top-50 inference is not part of this fixture.",
   "manifest_path": "data/processed/exports/asl_unsloth_pose_train_q64_full_top50_manifest.json",
   "metadata": {
-    "demo_count": 5,
+    "demo_count": 19,
     "evaluated_row_count": 50,
-    "requested_demo_count": 5,
-    "selected_count": 6,
+    "requested_demo_count": 19,
+    "selected_count": 20,
     "smoke_count": 1
   },
   "mode": "prompt_control_free_generation",
@@ -71,6 +71,146 @@
       "sample_id": "hot_28122",
       "selection_role": "demo",
       "valid_label": true
+    },
+    {
+      "correct": true,
+      "expected_gloss": "bird",
+      "inference_mode": "real",
+      "normalized_gloss": "bird",
+      "raw_model_output": "bird",
+      "sample_id": "bird_06341",
+      "selection_role": "demo",
+      "valid_label": true
+    },
+    {
+      "correct": true,
+      "expected_gloss": "door",
+      "inference_mode": "real",
+      "normalized_gloss": "door",
+      "raw_model_output": "door",
+      "sample_id": "door_68038",
+      "selection_role": "demo",
+      "valid_label": true
+    },
+    {
+      "correct": true,
+      "expected_gloss": "paper",
+      "inference_mode": "real",
+      "normalized_gloss": "paper",
+      "raw_model_output": "paper",
+      "sample_id": "paper_70211",
+      "selection_role": "demo",
+      "valid_label": true
+    },
+    {
+      "correct": true,
+      "expected_gloss": "need",
+      "inference_mode": "real",
+      "normalized_gloss": "need",
+      "raw_model_output": "need",
+      "sample_id": "need_37891",
+      "selection_role": "demo",
+      "valid_label": true
+    },
+    {
+      "correct": true,
+      "expected_gloss": "candy",
+      "inference_mode": "real",
+      "normalized_gloss": "candy",
+      "raw_model_output": "candy",
+      "sample_id": "candy_08926",
+      "selection_role": "demo",
+      "valid_label": true
+    },
+    {
+      "correct": true,
+      "expected_gloss": "deaf",
+      "inference_mode": "real",
+      "normalized_gloss": "deaf",
+      "raw_model_output": "deaf",
+      "sample_id": "deaf_14899",
+      "selection_role": "demo",
+      "valid_label": true
+    },
+    {
+      "correct": true,
+      "expected_gloss": "wrong",
+      "inference_mode": "real",
+      "normalized_gloss": "wrong",
+      "raw_model_output": "wrong",
+      "sample_id": "wrong_64094",
+      "selection_role": "demo",
+      "valid_label": true
+    },
+    {
+      "correct": true,
+      "expected_gloss": "book",
+      "inference_mode": "real",
+      "normalized_gloss": "book",
+      "raw_model_output": "book",
+      "sample_id": "book_68012",
+      "selection_role": "demo",
+      "valid_label": true
+    },
+    {
+      "correct": true,
+      "expected_gloss": "fine",
+      "inference_mode": "real",
+      "normalized_gloss": "fine",
+      "raw_model_output": "fine",
+      "sample_id": "fine_70234",
+      "selection_role": "demo",
+      "valid_label": true
+    },
+    {
+      "correct": true,
+      "expected_gloss": "cow",
+      "inference_mode": "real",
+      "normalized_gloss": "cow",
+      "raw_model_output": "cow",
+      "sample_id": "cow_13681",
+      "selection_role": "demo",
+      "valid_label": true
+    },
+    {
+      "correct": true,
+      "expected_gloss": "fish",
+      "inference_mode": "real",
+      "normalized_gloss": "fish",
+      "raw_model_output": "fish",
+      "sample_id": "fish_22109",
+      "selection_role": "demo",
+      "valid_label": true
+    },
+    {
+      "correct": true,
+      "expected_gloss": "city",
+      "inference_mode": "real",
+      "normalized_gloss": "city",
+      "raw_model_output": "city",
+      "sample_id": "city_10899",
+      "selection_role": "demo",
+      "valid_label": true
+    },
+    {
+      "correct": true,
+      "expected_gloss": "like",
+      "inference_mode": "real",
+      "normalized_gloss": "like",
+      "raw_model_output": "like",
+      "sample_id": "like_33277",
+      "selection_role": "demo",
+      "valid_label": true
+    },
+    {
+      "correct": true,
+      "expected_gloss": "blue",
+      "inference_mode": "real",
+      "normalized_gloss": "blue",
+      "raw_model_output": "blue",
+      "sample_id": "blue_06840",
+      "selection_role": "demo",
+      "valid_label": true
     }
   ],
   "records_path": "data/processed/exports/asl_unsloth_pose_train_q64_full_top50_test.jsonl",
@@ -80,7 +220,21 @@
     "center_09719",
     "clothes_11305",
     "backpack_04627",
-    "hot_28122"
+    "hot_28122",
+    "bird_06341",
+    "door_68038",
+    "paper_70211",
+    "need_37891",
+    "candy_08926",
+    "deaf_14899",
+    "wrong_64094",
+    "book_68012",
+    "fine_70234",
+    "cow_13681",
+    "fish_22109",
+    "city_10899",
+    "like_33277",
+    "blue_06840"
   ],
   "schema_version": 1,
   "scope": "prompt_control_reference_fixture"

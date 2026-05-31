@@ -10,9 +10,9 @@ import pandas as pd
 from src.evaluation.phase2a import (
     Phase2AConfig,
     build_phase2a_report,
+    run_label_prior_phase2a,
     write_phase2a_artifacts,
 )
-from scripts.legacy.phase2a_run import run_label_prior_phase2a
 
 
 def test_phase2a_report_identifies_weak_classes_and_blocks_signer_leakage() -> None:

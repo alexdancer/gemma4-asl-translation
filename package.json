@@ -1,6 +1,7 @@
 {
   "scripts": {
-    "test": "python scripts/project_python.py pytest",
-    "typecheck": "python scripts/project_python.py compileall src scripts tests"
+    "test": "python3 scripts/project_python.py pytest tests",
+    "typecheck": "python3 scripts/project_python.py compileall src scripts tests",
+    "dev:backend:setup": "bash scripts/dev/setup_backend_py312.sh"
   }
 }

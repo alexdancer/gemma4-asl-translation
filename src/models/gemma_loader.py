@@ -165,7 +165,7 @@ def load_checkpoint(
         tokenizer = AutoTokenizer.from_pretrained(checkpoint_path)
         LOGGER.info("Checkpoint loaded successfully")
         return model, tokenizer
-    except FileNotFoundError as exc:
+    except FileNotFoundError:
         LOGGER.error(f"Checkpoint not found: {checkpoint_path}")
         raise
 

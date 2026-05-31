@@ -92,7 +92,15 @@ class PoseExtractor:
             ) from exc
 
         self.include_face = include_face
-        self._holistic = mp.solutions.holistic.Holistic(
+        solutions = getattr(mp, "solutions", None)
+        if solutions is None:
+            try:
+                from mediapipe.python import solutions as mp_python_solutions  # type: ignore
+                solutions = mp_python_solutions
+            except Exception as exc:  # pragma: no cover - runtime compatibility guard
+                raise ImportError("mediapipe solutions module is unavailable") from exc
+
+        self._holistic = solutions.holistic.Holistic(
             static_image_mode=False,
             model_complexity=model_complexity,
             smooth_landmarks=True,

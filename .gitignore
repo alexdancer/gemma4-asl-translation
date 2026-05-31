@@ -7,9 +7,14 @@ __pycache__/
 htmlcov/
 
 # Environments
+.venv/
 .venv311/
+.venv-py312/
 venv/
 env/
+
+# Agent scratch
+.hermes/
 
 # Jupyter
 .ipynb_checkpoints/
@@ -17,6 +22,10 @@ env/
 # Data artifacts
 data/raw/
 data/processed/
+data/WLASL/
+data/phase1_zahid_top50
+data/video_finetune/
+data/*.zip
 !data/raw/.gitkeep
 !data/processed/.gitkeep
 
@@ -36,12 +45,21 @@ sign-language-asl/
 # Unsloth
 unsloth_compiled_cache/
 
-# Mobile export artifacts
-cactus_export/
 
 # Ephemeral evaluation/demo outputs
+results/
 evaluation/results/*_smoke/
 evaluation/results/prerecorded_q64_demo/
+notebooks/output/
+
+# Runtime telemetry artifacts (keep directory, ignore generated logs)
+evaluation/results/runtime/*.jsonl
+!evaluation/results/runtime/.gitkeep
+
+# checkpoints
+checkpoints/
+
+
 
 issues/
 ralph/

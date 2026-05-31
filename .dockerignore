@@ -19,7 +19,6 @@ tests
 
 data
 checkpoints
-cactus_export
 outputs
 runs
 wandb
