@@ -1,6 +1,6 @@
 # Technical Project Overview
 
-This document describes the current ASL Top-50 project architecture after the repository cleanup. It focuses on the active Colab, evaluation, and Gradio workflow.
+This document describes the current ASL Top-50 project architecture after the repository cleanup. It focuses on the active Colab, evaluation, and notebook-hosted demo workflow.
 
 ## Project scope
 
@@ -11,7 +11,7 @@ Current active surfaces:
 - Colab training/pretraining notebook.
 - Colab single-video inference notebook.
 - Colab batch evaluation notebook.
-- Colab/Hugging Face Gradio demo.
+- Colab-hosted Gradio demo notebook.
 - Local Python tests that enforce the notebook and runtime contracts.
 
 Removed/out of scope on this branch:
@@ -19,11 +19,12 @@ Removed/out of scope on this branch:
 - React Native app.
 - Cactus runtime/hybrid service.
 - iOS/mobile tracer code.
+- Hugging Face Space app/deployment code.
 - Mobile export artifacts and mobile-specific tests.
 
 ## Core inference contract
 
-The central contract is the same across Notebook 12, Notebook 13, Notebook 14, and the Gradio Space:
+The central contract is the same across Notebook 12, Notebook 13, and Notebook 14:
 
 | Field | Value |
 |---|---|
@@ -40,20 +41,20 @@ The model may produce arbitrary text. The project does **not** trust raw generat
 
 ## Why videos become frames
 
-Gemma-4/Unsloth FastVision inference in this project consumes image inputs through a chat template. The notebooks and Gradio app therefore convert a video into a fixed list of image frames before calling the model.
+Gemma-4/Unsloth FastVision inference in this project consumes image inputs through a chat template. The notebooks therefore convert a video into a fixed list of image frames before calling the model.
 
 This conversion happens in two ways:
 
 1. **Prepared datasets**: training/evaluation bundles contain deterministic frame folders such as `frames_30x448/<split>/<sample_id>/frame_000.jpg` through `frame_029.jpg`.
-2. **User uploads**: Notebook 12 and Gradio accept raw videos, sample frames in the runtime, and pass those images directly to the model.
+2. **User uploads**: Notebook 12 and Notebook 14 accept raw videos, sample frames in the runtime, and pass those images directly to the model.
 
-The Gradio app accepts a raw video from the user, but internally it still samples frames because the active model path is image-frame based rather than native-video based.
+The Colab Gradio demo accepts a raw video from the user, but internally it still samples frames because the active model path is image-frame based rather than native-video based.
 
 ## Label-space contract
 
-The project uses a fixed Top-50 gloss vocabulary. The exact active list appears in the notebooks and Gradio app. The important technical rules are:
+The project uses a fixed Top-50 gloss vocabulary. The exact active list appears in the notebooks. The important technical rules are:
 
-- Train, eval, batch `labels.csv`, notebook prompts, and Gradio validation must use the same label space.
+- Train, eval, batch `labels.csv`, notebook prompts, and demo validation must use the same label space.
 - Labels are normalized before comparison.
 - Aliases may be mapped before validation when explicitly configured.
 - Out-of-list generations are rejected and surfaced with a reason.
@@ -89,8 +90,7 @@ AlexD281/asl-gemma4-26b-a4b-zahid-wlasl-combined-top50-lora
 Used by:
 
 - Notebook 13 as one comparison target.
-- Notebook 14 Gradio demo.
-- `spaces/asl-gradio-cloud-demo/app.py` by default.
+- Notebook 14 Colab Gradio demo.
 
 ## Notebook architecture
 
@@ -141,42 +141,8 @@ Colab Gradio path:
 2. Configure adapter and frame contract.
 3. Define video sampling, prompt, normalization, and validation helpers.
 4. Load model once.
-5. Launch a Gradio UI.
+5. Launch a temporary Gradio UI from Colab.
 6. On each upload, sample frames in memory and return prediction/debug JSON.
-
-## Gradio Space architecture
-
-Path:
-
-```text
-spaces/asl-gradio-cloud-demo/app.py
-```
-
-Startup behavior:
-
-1. Set Hugging Face/Unsloth environment defaults.
-2. Resolve `ASL_ADAPTER_MODEL_ID`, defaulting to the combined Top-50 adapter.
-3. Optionally eager-load on startup via `ASL_EAGER_LOAD_ON_STARTUP`.
-4. `snapshot_download` the adapter.
-5. Load with `FastVisionModel.from_pretrained(..., load_in_4bit=True, max_seq_length=8192)`.
-6. Store model/tokenizer/diagnostics in a module-global bundle.
-
-Request behavior:
-
-1. Validate uploaded video path and extension.
-2. Sample `ASL_FRAME_COUNT` frames at `ASL_FRAME_SIZE`.
-3. Build the approved-label prompt.
-4. Apply tokenizer chat template with image inputs.
-5. Generate with deterministic settings.
-6. Normalize first-line output.
-7. Return accepted prediction or out-of-allowlist diagnostics.
-
-Failure behavior:
-
-- Missing video: fail closed with an explicit UI error.
-- Unsupported extension: fail closed.
-- Model load failure: show diagnostics instead of fake predictions.
-- Out-of-list candidate: return the candidate and rejection reason.
 
 ## Local source modules
 
@@ -209,7 +175,6 @@ Current test categories:
 | `tests/demo/` | Demo output contracts, replay/fallback behavior, prompt-control smoke checks. |
 | `tests/evaluation/` | Colab gatekeeping, model evaluation, multiword evaluation, report generation. |
 | `tests/runtime/` | Runtime API contracts, frame extraction, live capture, telemetry, video ingest. |
-| `tests/spaces/` | Gradio Space app contract tests. |
 | `tests/training/` | Training utility contracts. |
 
 The tests do not run full Gemma inference locally. They enforce data shapes, prompt/output contracts, normalization behavior, and application-level fail-closed semantics.
@@ -265,7 +230,7 @@ Important outputs are generally written outside git-tracked paths:
 - Notebook 12 single-video JSONL: `/content/drive/MyDrive/asl/notebook12_user_video_results.jsonl`
 - Notebook 12 batch JSONL: `/content/drive/MyDrive/asl/notebook12_wlasl_top50_batch_results.jsonl`
 - Notebook 13 comparison JSON: `/content/asl_gemma4_26b_model_comparison/model_comparison_11_vs_14.json`
-- Gradio Space debug JSON: returned in the UI, not committed.
+- Notebook 14 debug JSON: returned in the Colab Gradio UI, not committed.
 
 Do not commit raw videos, checkpoints, extracted frames, JSONL run logs, or notebook output artifacts.
 
@@ -285,6 +250,7 @@ Reasonable future extensions:
 - Add a smaller-model notebook variant for cheaper GPUs.
 - Convert Notebook 12 output filenames from generic `top50` names to explicit model-labelset names.
 - Add a native-video model path only if the model/processor truly supports raw video and the training/eval contracts are updated accordingly.
+- Rebuild a hosted demo intentionally from the current notebook contract if a deployment surface is needed again.
 
 When extending the project, keep the following synchronized:
 

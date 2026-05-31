@@ -1,8 +1,8 @@
-# ASL Top-50 Colab + Gradio Project
+# ASL Top-50 Colab Project
 
-This repository contains a Colab-first ASL recognition prototype for a fixed **Top-50 ASL gloss vocabulary**. It is designed around Gemma-4 vision-language inference/fine-tuning, notebook-based evaluation, and a lightweight Gradio demo.
+This repository contains a Colab-first ASL recognition prototype for a fixed **Top-50 ASL gloss vocabulary**. It is designed around Gemma-4 vision-language inference/fine-tuning, notebook-based evaluation, and an optional Colab-hosted Gradio demo.
 
-The current project is **not** a mobile app. The legacy React Native, Cactus, iOS, and mobile tracer code has been removed from this branch.
+The current project is **not** a mobile app and no longer includes Hugging Face Space deployment code. The legacy React Native, Cactus, iOS, mobile tracer, and Hugging Face Space app code have been removed from this branch.
 
 ## What the project does
 
@@ -10,13 +10,13 @@ The project takes a short ASL video, samples a fixed set of frames, asks a Gemma
 
 At a high level:
 
-1. A video is uploaded in Colab or Gradio.
+1. A video is uploaded in Colab.
 2. The runtime samples **30 evenly spaced RGB frames** from the video.
 3. Frames are resized to **448x448**.
 4. The frames are passed to a Gemma-4 vision model through the Unsloth `FastVisionModel` path.
 5. The model is prompted to return exactly one gloss from the approved list.
 6. The raw model output is normalized and checked against the strict Top-50 allowlist.
-7. The notebook/app returns the accepted prediction, or shows the rejected candidate and reason.
+7. The notebook returns the accepted prediction, or shows the rejected candidate and reason.
 
 This strict allowlist behavior is intentional. It prevents vague, free-form, or out-of-vocabulary answers from being treated as valid ASL predictions.
 
@@ -62,21 +62,17 @@ notebooks/13_colab_hf_model_eval_top50.ipynb
 
 This compares Hugging Face adapters on Zahid and WLASL Top-50 bundles using the same frame/prompt/normalization contract.
 
-### 4. Gradio demo
+### 4. Temporary Colab Gradio demo
 
-Use either:
+Use:
 
 ```text
 notebooks/14_colab_gradio_asl_demo.ipynb
 ```
 
-or the Hugging Face Space source:
+This launches a temporary Gradio UI from Colab. It accepts a raw uploaded video, samples frames in memory, runs the model, and returns a strict Top-50 prediction plus debug JSON.
 
-```text
-spaces/asl-gradio-cloud-demo/
-```
-
-The Gradio app accepts a raw uploaded video, samples frames in memory, runs the model, and returns a strict Top-50 prediction plus debug JSON.
+There is no tracked Hugging Face Space app in this repository anymore. If a hosted demo is needed later, rebuild it intentionally from the current notebook contract rather than reviving stale Space code.
 
 ## Current notebooks
 
@@ -85,7 +81,7 @@ The Gradio app accepts a raw uploaded video, samples frames in memory, runs the 
 | `notebooks/11_colab_gemma4_26b_zahid_phase1_pretrain.ipynb` | Training/pretraining notebook for the Zahid Top-50 adapter. | `phase1_zahid_top50_bundle.zip` in Drive. |
 | `notebooks/12_colab_user_video_inference_top50.ipynb` | Main user-video inference notebook. | One raw video, or one batch ZIP with optional `labels.csv`. |
 | `notebooks/13_colab_hf_model_eval_top50.ipynb` | Hugging Face adapter comparison/evaluation. | Zahid/WLASL prepared frame bundles in Drive. |
-| `notebooks/14_colab_gradio_asl_demo.ipynb` | Colab-hosted Gradio demo. | One uploaded raw video. |
+| `notebooks/14_colab_gradio_asl_demo.ipynb` | Temporary Colab-hosted Gradio demo. | One uploaded raw video. |
 
 See `notebooks/README.md` for exact upload files, Drive paths, and run order.
 
@@ -231,7 +227,7 @@ Notebook 13 compares:
 - `AlexD281/asl-gemma4-26b-a4b-zahid-pretrain-lora`
 - `AlexD281/asl-gemma4-26b-a4b-zahid-wlasl-combined-top50-lora`
 
-Notebook 14 and the Gradio Space default to:
+Notebook 14 defaults to:
 
 - `AlexD281/asl-gemma4-26b-a4b-zahid-wlasl-combined-top50-lora`
 
@@ -242,12 +238,11 @@ Do not substitute the Google base model for Notebook 11/12 without deliberately 
 | Path | Role |
 |---|---|
 | `notebooks/` | Colab notebooks and notebook run guide. |
-| `spaces/asl-gradio-cloud-demo/` | Hugging Face Gradio Space app. |
 | `src/data/` | Data loading, frame/pose contracts, and dataset utilities. |
 | `src/evaluation/` | Notebook/evaluation parsing, normalization, scoring, and gatekeeping helpers. |
 | `src/demo/` | Demo/reference-output helpers. |
 | `src/shared/` | Small shared contracts used by runtime tests. |
-| `tests/` | Unit/contract tests for data, notebooks, runtime helpers, Gradio app behavior, and evaluation utilities. |
+| `tests/` | Unit/contract tests for data, notebooks, runtime helpers, demo behavior, and evaluation utilities. |
 | `docs/` | Human-readable project notes and technical documentation. |
 
 ## Data and artifact policy
@@ -295,13 +290,11 @@ python scripts/evaluation/run_multiword_eval_pipeline.py --help
 - `docs/technical-project-overview.md` — technical architecture, data contracts, inference path, and testing strategy.
 - `docs/notebook12-wlasl-zahid-labelset-batch-results.md` — Notebook 12 WLASL batch result and label-space caveat.
 - `docs/wlasl-i3d-reference.md` — WLASL/I3D reference notes.
-- `spaces/asl-gradio-cloud-demo/README.md` — Gradio Space runtime notes.
 
 ## Scope guardrails
 
-- Notebook 12 is the main inference surface.
+- Notebook 12 is the main user-video path.
 - Notebook 13 is the main lightweight evaluation surface.
-- Notebook 14 / the Gradio Space are demo surfaces, not production apps.
-- Keep the Top-50 allowlist and label normalization consistent across notebooks, Gradio, and tests.
+- Notebook 14 is a temporary Colab demo surface, not a production app.
+- Keep the Top-50 allowlist and label normalization consistent across notebooks and tests.
 - Treat WLASL batch scores as out-of-domain evidence unless the model has been trained on the corresponding WLASL split.
-- Do not commit generated checkpoints, ZIPs, run logs, notebook output artifacts, or raw uploaded videos.
