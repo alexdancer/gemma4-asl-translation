@@ -2,6 +2,8 @@
 
 Colab-first ASL recognition prototype for a fixed Top-50 ASL gloss set. It samples video frames, runs Gemma-4 vision inference through Unsloth, and accepts only labels in the Top-50 allowlist.
 
+**Gradio demo notebook:** [`notebooks/14_colab_gradio_asl_demo.ipynb`](https://github.com/alexdancer/gemma4-asl-translation/blob/master/notebooks/14_colab_gradio_asl_demo.ipynb)
+
 ## Links
 
 - Model adapter: [AlexD281/asl-gemma4-26b-a4b-zahid-pretrain-lora](https://huggingface.co/AlexD281/asl-gemma4-26b-a4b-zahid-pretrain-lora)
