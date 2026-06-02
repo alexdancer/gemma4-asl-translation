@@ -10,6 +10,10 @@ Colab-first ASL recognition prototype for a fixed Top-50 ASL gloss set. It sampl
 - WLASL dataset: [dxli94/WLASL](https://github.com/dxli94/WLASL)
 - Zahid ASL dataset: [ZahidYasinMittha/American-Sign-Language-Dataset](https://huggingface.co/datasets/ZahidYasinMittha/American-Sign-Language-Dataset)
 
+## Architecture
+
+![ASL project architecture](docs/assets/asl-project-architecture.svg)
+
 ## How it works
 
 1. Upload a video in Colab.

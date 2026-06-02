@@ -1,0 +1,246 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1800" height="860" viewBox="0 0 1800 860" role="img" aria-labelledby="title desc">
+  <title id="title">ASL project architecture</title>
+  <desc id="desc">Dark themed architecture diagram showing datasets, preparation scripts, frame contract, notebooks, model runtime, prediction gatekeeper, and user result.</desc>
+  <defs>
+    <pattern id="grid" width="32" height="32" patternUnits="userSpaceOnUse">
+      <path d="M 32 0 L 0 0 0 32" fill="none" stroke="#1e293b" stroke-width="0.6" opacity="0.75"/>
+      <circle cx="0" cy="0" r="1" fill="#334155" opacity="0.45"/>
+    </pattern>
+    <linearGradient id="bg" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#020617"/>
+      <stop offset="0.55" stop-color="#0f172a"/>
+      <stop offset="1" stop-color="#111827"/>
+    </linearGradient>
+    <filter id="softGlow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="3" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="12" stdDeviation="12" flood-color="#000000" flood-opacity="0.35"/>
+    </filter>
+    <marker id="arrow" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto" markerUnits="strokeWidth">
+      <path d="M 0 0 L 12 6 L 0 12 z" fill="#64748b"/>
+    </marker>
+    <marker id="arrowCyan" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto" markerUnits="strokeWidth">
+      <path d="M 0 0 L 12 6 L 0 12 z" fill="#22d3ee"/>
+    </marker>
+    <marker id="arrowGreen" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto" markerUnits="strokeWidth">
+      <path d="M 0 0 L 12 6 L 0 12 z" fill="#34d399"/>
+    </marker>
+    <marker id="arrowRose" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto" markerUnits="strokeWidth">
+      <path d="M 0 0 L 12 6 L 0 12 z" fill="#fb7185"/>
+    </marker>
+    <style>
+      .title { font: 700 30px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; fill: #f8fafc; letter-spacing: -0.03em; }
+      .subtitle { font: 500 13px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; fill: #94a3b8; }
+      .lane { font: 700 13px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; fill: #cbd5e1; letter-spacing: .08em; text-transform: uppercase; }
+      .box-title { font: 700 13px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; fill: #f8fafc; }
+      .box-text { font: 500 11px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; fill: #dbeafe; }
+      .muted { fill: #94a3b8; }
+      .label { font: 700 15px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; fill: #e2e8f0; }
+      .small-label { font: 700 12px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; fill: #cbd5e1; }
+      .pill { font: 700 11px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; fill: #c4b5fd; }
+      .flow { fill: none; stroke: #64748b; stroke-width: 2; marker-end: url(#arrow); opacity: .9; }
+      .flow-cyan { fill: none; stroke: #22d3ee; stroke-width: 2.2; marker-end: url(#arrowCyan); opacity: .95; }
+      .flow-green { fill: none; stroke: #34d399; stroke-width: 2.2; marker-end: url(#arrowGreen); opacity: .95; }
+      .flow-rose { fill: none; stroke: #fb7185; stroke-width: 2.2; marker-end: url(#arrowRose); opacity: .95; }
+      .flow-dash { stroke-dasharray: 7 7; }
+      .glow-cyan { filter: url(#softGlow); }
+    </style>
+  </defs>
+
+  <rect width="1800" height="860" fill="url(#bg)"/>
+  <rect width="1800" height="860" fill="url(#grid)" opacity="0.8"/>
+  <circle cx="1220" cy="120" r="260" fill="#0891b2" opacity="0.06"/>
+  <circle cx="520" cy="660" r="300" fill="#22c55e" opacity="0.05"/>
+
+  <text x="64" y="58" class="title">Gemma4 ASL Translation Architecture</text>
+  <text x="64" y="84" class="subtitle">Colab-first Top-50 ASL pipeline: raw videos → deterministic frame contracts → Gemma-4/Unsloth inference → strict allowlist gatekeeping</text>
+
+  <text x="157" y="133" text-anchor="middle" class="lane">Sources</text>
+  <text x="444" y="133" text-anchor="middle" class="lane">Bundle builders</text>
+  <text x="724" y="133" text-anchor="middle" class="lane">Shared contract</text>
+  <text x="980" y="133" text-anchor="middle" class="lane">Notebook paths</text>
+  <text x="1467" y="133" text-anchor="middle" class="lane">Runtime + guardrails</text>
+
+  <!-- Arrow layer -->
+  <path class="flow" d="M 250 252 C 290 252, 300 222, 342 222"/>
+  <path class="flow" d="M 250 272 C 290 272, 300 376, 342 376"/>
+  <path class="flow" d="M 546 238 C 590 238, 600 304, 638 304"/>
+  <path class="flow" d="M 546 392 C 590 392, 600 342, 638 342"/>
+
+  <path class="flow-green" d="M 810 292 C 842 236, 832 208, 868 208"/>
+  <path class="flow-green" d="M 810 326 C 842 326, 832 330, 868 330"/>
+  <path class="flow-green" d="M 810 358 C 842 418, 832 452, 868 452"/>
+  <path class="flow-dash flow-green" d="M 810 398 C 842 570, 832 624, 868 624"/>
+
+  <path class="flow-cyan" d="M 1092 325 C 1135 302, 1124 226, 1174 226"/>
+  <path class="flow-green" d="M 1092 204 C 1142 204, 1124 214, 1174 214"/>
+  <path class="flow-cyan" d="M 1326 220 C 1362 220, 1375 220, 1412 220"/>
+  <path class="flow-rose" d="M 1558 220 C 1582 220, 1600 220, 1628 220"/>
+  <path class="flow-dash flow-rose" d="M 1485 286 C 1485 326, 1468 354, 1435 376"/>
+  <path class="flow-dash flow-green" d="M 1092 462 C 1188 508, 1296 600, 1412 660"/>
+  <path class="flow-dash flow-green" d="M 1092 644 C 1196 622, 1260 488, 1412 454"/>
+
+  <!-- Sources -->
+  <g filter="url(#shadow)">
+    <rect x="64" y="170" width="186" height="142" rx="12" fill="#0f172a"/>
+    <rect x="64" y="170" width="186" height="142" rx="12" fill="rgba(76, 29, 149, 0.34)" stroke="#a78bfa" stroke-width="1.5"/>
+    <text x="82" y="199" class="box-title">Datasets</text>
+    <text x="82" y="228" class="box-text">• Zahid ASL clips</text>
+    <text x="82" y="250" class="box-text">• WLASL videos</text>
+    <text x="82" y="283" class="box-text muted">Raw videos + labels</text>
+  </g>
+
+  <!-- Builders -->
+  <g filter="url(#shadow)">
+    <rect x="342" y="154" width="204" height="134" rx="12" fill="#0f172a"/>
+    <rect x="342" y="154" width="204" height="134" rx="12" fill="rgba(8, 51, 68, 0.42)" stroke="#22d3ee" stroke-width="1.5"/>
+    <text x="360" y="183" class="box-title">Zahid preparation</text>
+    <text x="360" y="212" class="box-text">download_phase1_videos.py</text>
+    <text x="360" y="234" class="box-text">extract_phase1_frames...</text>
+    <text x="360" y="267" class="box-text muted">Creates 30×448 frame</text>
+    <text x="360" y="286" class="box-text muted">sequences + JSONL splits</text>
+  </g>
+
+  <g filter="url(#shadow)">
+    <rect x="342" y="334" width="204" height="146" rx="12" fill="#0f172a"/>
+    <rect x="342" y="334" width="204" height="146" rx="12" fill="rgba(8, 51, 68, 0.42)" stroke="#22d3ee" stroke-width="1.5"/>
+    <text x="360" y="363" class="box-title">WLASL preparation</text>
+    <text x="360" y="392" class="box-text">extract_wlasl_video_frames.py</text>
+    <text x="360" y="425" class="box-text muted">Builds Top-50 frame</text>
+    <text x="360" y="444" class="box-text muted">folders, labels.txt,</text>
+    <text x="360" y="463" class="box-text muted">manifest + split JSONL</text>
+  </g>
+
+  <!-- Contract -->
+  <g filter="url(#shadow)">
+    <rect x="638" y="254" width="172" height="174" rx="14" fill="#0f172a"/>
+    <rect x="638" y="254" width="172" height="174" rx="14" fill="rgba(120, 53, 15, 0.34)" stroke="#f59e0b" stroke-width="1.5"/>
+    <text x="724" y="284" text-anchor="middle" class="box-title">Data contract</text>
+    <text x="660" y="316" class="box-text">Video sample</text>
+    <text x="660" y="338" class="box-text">→ 30 RGB frames</text>
+    <text x="660" y="360" class="box-text">→ 448×448 JPGs</text>
+    <text x="660" y="382" class="box-text">→ sample_id + gloss</text>
+    <text x="660" y="414" class="box-text muted">Top-50 allowlist</text>
+  </g>
+
+  <g class="glow-cyan">
+    <rect x="627" y="470" width="194" height="56" rx="28" fill="#0f172a" stroke="#22d3ee" stroke-width="1.5"/>
+    <text x="724" y="493" text-anchor="middle" class="pill">One scoring contract</text>
+    <text x="724" y="513" text-anchor="middle" class="box-text muted">train • eval • demo</text>
+  </g>
+
+  <!-- Notebook paths -->
+  <g filter="url(#shadow)">
+    <rect x="868" y="154" width="224" height="118" rx="12" fill="#0f172a"/>
+    <rect x="868" y="154" width="224" height="118" rx="12" fill="rgba(6, 78, 59, 0.42)" stroke="#34d399" stroke-width="1.5"/>
+    <text x="886" y="183" class="box-title">Notebook 11: train</text>
+    <text x="886" y="212" class="box-text">Gemma-4 26B A4B + LoRA</text>
+    <text x="886" y="234" class="box-text muted">Zahid Top-50 pretrain</text>
+    <text x="886" y="256" class="box-text muted">Adapter on Hugging Face</text>
+  </g>
+
+  <g filter="url(#shadow)">
+    <rect x="868" y="302" width="224" height="118" rx="12" fill="#0f172a"/>
+    <rect x="868" y="302" width="224" height="118" rx="12" fill="rgba(6, 78, 59, 0.42)" stroke="#34d399" stroke-width="1.5"/>
+    <text x="886" y="331" class="box-title">Notebook 12: infer</text>
+    <text x="886" y="360" class="box-text">Raw video / batch ZIP upload</text>
+    <text x="886" y="382" class="box-text muted">Extracts frames at runtime</text>
+    <text x="886" y="404" class="box-text muted">Shows candidate + reason</text>
+  </g>
+
+  <g filter="url(#shadow)">
+    <rect x="868" y="450" width="224" height="132" rx="12" fill="#0f172a"/>
+    <rect x="868" y="450" width="224" height="132" rx="12" fill="rgba(6, 78, 59, 0.42)" stroke="#34d399" stroke-width="1.5"/>
+    <text x="886" y="479" class="box-title">Notebook 13: evaluate</text>
+    <text x="886" y="508" class="box-text">Compare HF adapters</text>
+    <text x="886" y="530" class="box-text muted">Same frames, prompt,</text>
+    <text x="886" y="549" class="box-text muted">normalization, allowlist</text>
+  </g>
+
+  <g filter="url(#shadow)">
+    <rect x="868" y="614" width="224" height="122" rx="12" fill="#0f172a"/>
+    <rect x="868" y="614" width="224" height="122" rx="12" fill="rgba(6, 78, 59, 0.42)" stroke="#34d399" stroke-width="1.5"/>
+    <text x="886" y="643" class="box-title">Tests + contracts</text>
+    <text x="886" y="672" class="box-text">tests/data • evaluation</text>
+    <text x="886" y="694" class="box-text">tests/demo • runtime</text>
+    <text x="886" y="724" class="box-text muted">Protect gates + helpers</text>
+  </g>
+
+  <!-- Runtime and gatekeeper -->
+  <g filter="url(#shadow)">
+    <rect x="1174" y="154" width="152" height="132" rx="12" fill="#0f172a"/>
+    <rect x="1174" y="154" width="152" height="132" rx="12" fill="rgba(8, 51, 68, 0.48)" stroke="#22d3ee" stroke-width="1.5"/>
+    <text x="1192" y="183" class="box-title">Model runtime</text>
+    <text x="1192" y="212" class="box-text">FastVisionModel</text>
+    <text x="1192" y="234" class="box-text">Gemma-4 prompt</text>
+    <text x="1192" y="256" class="box-text muted">Input: 30 frames</text>
+    <text x="1192" y="275" class="box-text muted">Output: raw text</text>
+  </g>
+
+  <g filter="url(#shadow)">
+    <rect x="1412" y="154" width="146" height="132" rx="12" fill="#0f172a"/>
+    <rect x="1412" y="154" width="146" height="132" rx="12" fill="rgba(136, 19, 55, 0.42)" stroke="#fb7185" stroke-width="1.5"/>
+    <text x="1430" y="183" class="box-title">Gatekeeper</text>
+    <text x="1430" y="212" class="box-text">normalize output</text>
+    <text x="1430" y="234" class="box-text">apply aliases</text>
+    <text x="1430" y="256" class="box-text">reject OOV</text>
+    <text x="1430" y="275" class="box-text muted">strict Top-50</text>
+  </g>
+
+  <g filter="url(#shadow)">
+    <rect x="1412" y="360" width="146" height="120" rx="12" fill="#0f172a"/>
+    <rect x="1412" y="360" width="146" height="120" rx="12" fill="rgba(136, 19, 55, 0.34)" stroke="#fb7185" stroke-width="1.5"/>
+    <text x="1430" y="389" class="box-title">Notebook 14</text>
+    <text x="1430" y="418" class="box-text">Colab Gradio UI</text>
+    <text x="1430" y="440" class="box-text muted">same model path</text>
+    <text x="1430" y="462" class="box-text muted">same gate flow</text>
+  </g>
+
+  <g filter="url(#shadow)">
+    <rect x="1412" y="614" width="146" height="122" rx="12" fill="#0f172a"/>
+    <rect x="1412" y="614" width="146" height="122" rx="12" fill="rgba(120, 53, 15, 0.32)" stroke="#f59e0b" stroke-width="1.5"/>
+    <text x="1430" y="643" class="box-title">Best model</text>
+    <text x="1430" y="672" class="box-text">Zahid-only</text>
+    <text x="1430" y="694" class="box-text">adapter</text>
+    <text x="1430" y="724" class="box-text muted">strongest now</text>
+  </g>
+
+  <g filter="url(#shadow)">
+    <rect x="1628" y="154" width="132" height="132" rx="12" fill="#0f172a"/>
+    <rect x="1628" y="154" width="132" height="132" rx="12" fill="rgba(76, 29, 149, 0.36)" stroke="#a78bfa" stroke-width="1.5"/>
+    <text x="1646" y="183" class="box-title">User result</text>
+    <text x="1646" y="212" class="box-text">accepted gloss</text>
+    <text x="1646" y="234" class="box-text">or rejection</text>
+    <text x="1646" y="264" class="box-text muted">batch mode</text>
+    <text x="1646" y="280" class="box-text muted">scores labels</text>
+  </g>
+
+  <g transform="translate(64 736)">
+    <rect x="0" y="0" width="650" height="70" rx="18" fill="#0f172a" stroke="#334155"/>
+    <circle cx="28" cy="32" r="8" fill="#22d3ee" filter="url(#softGlow)"/>
+    <text x="50" y="27" class="small-label">Runtime frame contract</text>
+    <text x="50" y="47" class="box-text muted">Every user-facing path converges on 30 evenly sampled 448×448 RGB frames</text>
+    <text x="50" y="63" class="box-text muted">and the same canonical Top-50 allowlist.</text>
+  </g>
+
+  <g transform="translate(740 736)">
+    <rect x="0" y="0" width="376" height="70" rx="18" fill="#0f172a" stroke="#334155"/>
+    <circle cx="28" cy="32" r="8" fill="#34d399" filter="url(#softGlow)"/>
+    <text x="50" y="27" class="small-label">Evaluation parity</text>
+    <text x="50" y="47" class="box-text muted">Notebook 13 reuses the same prompt,</text>
+    <text x="50" y="63" class="box-text muted">label map, and rejection rules.</text>
+  </g>
+
+  <g transform="translate(1142 736)">
+    <rect x="0" y="0" width="396" height="70" rx="18" fill="#0f172a" stroke="#334155"/>
+    <circle cx="28" cy="32" r="8" fill="#fb7185" filter="url(#softGlow)"/>
+    <text x="50" y="27" class="small-label">Fail-closed predictions</text>
+    <text x="50" y="47" class="box-text muted">OOV or vague candidates return a reason</text>
+    <text x="50" y="63" class="box-text muted">instead of fake success.</text>
+  </g>
+</svg>
