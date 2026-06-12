@@ -38,7 +38,7 @@ Out-of-vocabulary or vague outputs are rejected with the candidate and rejection
 
 See `notebooks/README.md` for exact Drive paths and run order.
 
-Model evaluation metrics and comparison results are documented in `docs/`. Start with `docs/notebook12-wlasl-zahid-labelset-batch-results.md` for the Notebook 12 batch results.
+Model evaluation metrics and comparison results are documented in `docs/`. Start with `docs/notebook12-wlasl-zahid-labelset-batch-results.md` for the Notebook 12 batch results, and `docs/notebook13-model-comparison-results.md` for the Notebook 13 adapter comparison (Zahid pretrain vs. Zahid+WLASL combined, evaluated at 200 samples per split on Zahid and combined; 59/63 on the current WLASL bundle).
 
 ## Model defaults
 

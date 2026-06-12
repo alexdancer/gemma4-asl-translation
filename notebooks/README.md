@@ -246,6 +246,14 @@ Outputs are written under the notebook work directory, for example:
 /content/asl_gemma4_26b_model_comparison/model_comparison_11_vs_14.json
 ```
 
+### Latest Notebook 13 results
+
+- Adapters compared: `notebook11_zahid_phase1` vs `notebook14_zahid_wlasl_combined`.
+- Eval cap: `EVAL_MAX_SAMPLES = 200`. The Zahid and combined splits hit the cap; the current WLASL bundle only has 59 val / 63 test preprocessed clips, so those splits stop at the data limit.
+- Notebook 11 (Zahid pretrain): Zahid val 121/200 = 60.5%, Zahid test 130/200 = 65.0%, WLASL val 24/59 = 40.7%, WLASL test 38/63 = 60.3%.
+- Notebook 14 (Zahid + WLASL combined): Zahid val 109/200 = 54.5%, Zahid test 111/200 = 55.5%, WLASL val 30/59 = 50.8%, WLASL test 36/63 = 57.1%.
+- Full table, deltas, and framing: `docs/notebook13-model-comparison-results.md`. Source JSON: `notebooks/output/model_comparison_11_vs_14.json`.
+
 ## Notebook 14 — Colab Gradio demo
 
 File:
